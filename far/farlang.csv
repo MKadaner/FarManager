@@ -3,5 +3,5 @@
 ,Language description,Russian (Русский),English,Czech (Čeština),German (Deutsch),Hungarian (Magyar),Polish (Polski),Spanish (Español),Slovak (Slovenčina),Italian (Italiano),Ukrainian (Українська),Belarusian (Беларуская),Lithuanian (Lietuvių)
 ID,Comment,,,,,,,,,,,,
 MYes,,Да,Yes,Ano,Ja,Igen,Tak,Si,Áno,&Si,Так,Так,Taip
-MNo,,Нет,No,Ne,Nein,Nem,Nie,No,Nie,&No,Ні,Не,Ne
+MNo,,Да нет же!,"No, no, NO!",Ne,Nein,Nem,Nie,No,Nie,&No,Ні,Не,Ne
 MHelpF1,\nHelp KeyBar F1-12,Помощь,Help,Nápověda,Hilfe,Súgó,Pomoc,Ayuda,Pomocník,Aiuto,Допом,Дапамога,upd:Help
