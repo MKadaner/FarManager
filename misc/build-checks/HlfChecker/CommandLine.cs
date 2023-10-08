@@ -158,8 +158,8 @@ Examples:
   Checks help files of FAR Commands plugins in all languages except Russian:
     {hlfCheckerName} .\plugins\farcmds -rus
 
-While comparing paragrpahs, {hlfCheckerName} extracts all references (e.g., ""@About@"") from
-corresponding paragrpahs and compares the collections of references. By default, if ""{ProcessingOptions.StrictRefs}""
+While comparing paragraphs, {hlfCheckerName} extracts all references (e.g., ""@About@"") from
+corresponding paragraphs and compares the collections of references. By default, if ""{ProcessingOptions.StrictRefs}""
 parameter is NOT specified, the collections are sorted and repeated references are removed before
 comparing. If ""{ProcessingOptions.StrictRefs}"" parameter is specified, the collections are compared exactly as extracted.
 ".Trace();

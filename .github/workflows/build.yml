@@ -22,7 +22,7 @@ jobs:
         run: python tools/source_validator.py
 
 #------------------------------------------------------------------------------
-  changelog-hlf-checks:
+  changelog-hlf-lng-checks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -42,6 +42,10 @@ jobs:
       - name: Build and run HlfChecker
         working-directory: misc/build-checks/HlfChecker
         run: dotnet run --project ./HlfChecker.csproj --configuration Release --property UseSharedCompilation=false -- Verbose
+
+      - name: Build and run LngChecker
+        working-directory: misc/build-checks/LngChecker
+        run: dotnet run --project ./LngChecker.csproj --configuration Release --property UseSharedCompilation=false -- Validate
 
 #------------------------------------------------------------------------------
   build-msbuild:
