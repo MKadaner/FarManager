@@ -2119,6 +2119,7 @@ void Options::InitConfigsData()
 		{FSSF_PRIVATE,           NKeyVMenu,                  L"LBtnClick"sv,                     VMenu.LBtnClick, VMENUCLICK_CANCEL},
 		{FSSF_PRIVATE,           NKeyVMenu,                  L"MBtnClick"sv,                     VMenu.MBtnClick, VMENUCLICK_APPLY},
 		{FSSF_PRIVATE,           NKeyVMenu,                  L"RBtnClick"sv,                     VMenu.RBtnClick, VMENUCLICK_CANCEL},
+		{FSSF_PRIVATE,           NKeyVMenu,                  L"SwapHScrollDirection"sv,          VMenu.SwapHScrollDirection, false},
 		{FSSF_PRIVATE,           NKeyXLat,                   L"Flags"sv,                         XLat.Flags, XLAT_SWITCHKEYBLAYOUT|XLAT_CONVERTALLCMDLINE},
 		{FSSF_PRIVATE,           NKeyXLat,                   L"Layouts"sv,                       XLat.strLayouts, L""sv},
 		{FSSF_PRIVATE,           NKeyXLat,                   L"Rules1"sv,                        XLat.Rules[0], L""sv},

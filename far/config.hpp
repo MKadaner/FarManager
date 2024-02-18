@@ -634,6 +634,7 @@ public:
 		IntOption LBtnClick;
 		IntOption RBtnClick;
 		IntOption MBtnClick;
+		BoolOption SwapHScrollDirection;
 	};
 
 	struct CommandLineOptions

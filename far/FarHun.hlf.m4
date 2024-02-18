@@ -6743,6 +6743,21 @@ or the search starting point.
  This parameter can be changed via ~far:config~@FarConfig@ only.
 
 
+@VMenu.SwapHScrollDirection
+$ #far:config VMenu.SwapHScrollDirection#
+ This Boolean parameter swaps the direction of ~horizontal scrolling~@MenuCmd@
+of menu and list box items.
+
+ False - ^<wrap>#Left# arrow scrolls items to the right, #Right# arrow scrolls items to the left.
+In other words, these keys control the menu window. 
+ True  - #Left# arrow scrolls items to the left, #Right# arrow scrolls items to the right.
+I.e., these keys control the menu items.
+
+ Default value: False (arrow keys control the menu window).
+
+ This parameter can be changed via ~far:config~@FarConfig@ only.
+
+
 @XLat.Layouts
 $ #far:config XLat.Layouts#
  This string parameter defines the input locales (keyboard layouts)

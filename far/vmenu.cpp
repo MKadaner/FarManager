@@ -1509,7 +1509,9 @@ bool VMenu::ProcessKey(const Manager::Key& Key)
 
 	const auto HScrollShiftSign = [&]
 	{
-		return any_of(LocalKey & ~KEY_CTRLMASK, KEY_LEFT, KEY_NUMPAD4, KEY_MSWHEEL_LEFT) ? 1 : -1;
+		return any_of(LocalKey & ~KEY_CTRLMASK, KEY_LEFT, KEY_NUMPAD4, KEY_MSWHEEL_LEFT) == Global->Opt->VMenu.SwapHScrollDirection
+			? -1
+			: 1;
 	};
 
 	switch (LocalKey)

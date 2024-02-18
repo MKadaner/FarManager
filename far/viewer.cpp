@@ -319,6 +319,56 @@ void Viewer::AdjustHexModeBytesPerLineToViewWidth()
 	}
 }
 
+void Viewer::HorizontalScroll(const int Shift, const bool LeftKeyPressed)
+{
+	if (!ViewFile || Shift <= 0) return;
+
+	const auto ShiftContentLeft{ LeftKeyPressed == Global->Opt->VMenu.SwapHScrollDirection };
+	if (ShiftContentLeft)
+	{
+		if (m_DisplayMode == VMT_TEXT)
+		{
+			if (!m_Wrap)
+			{
+				LeftPos = std::min(LeftPos + Shift, static_cast<long long>(MaxViewLineSize()));
+				Show();
+			}
+			return;
+		}
+
+		if (Shift > 1)
+		{
+			const auto CharSize = GetModeDependentCharSize();
+			FilePos -= FilePos % CharSize;
+			FilePos = FilePos < FileSize - CharSize? FilePos + CharSize : FileSize - 1;
+			FilePos -= FilePos % CharSize;
+			Show();
+			return;
+		}
+	}
+	else // Shift Content Right
+	{
+		if (m_DisplayMode == VMT_TEXT)
+		{
+			if (!m_Wrap)
+			{
+				LeftPos = std::max(LeftPos - Shift, 0LL);
+				Show();
+			}
+			return;
+		}
+
+		if (Shift > 1)
+		{
+			const auto CharSize = GetModeDependentCharSize();
+			FilePos = FilePos > CharSize? FilePos - CharSize : 0;
+			FilePos -= FilePos % CharSize;
+			Show();
+			return;
+		}
+	}
+}
+
 struct Viewer::ViewerUndoData
 {
 	ViewerUndoData(long long UndoAddr, long long UndoLeft):

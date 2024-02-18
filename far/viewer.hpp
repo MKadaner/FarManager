@@ -173,6 +173,8 @@ private:
 	void ChangeHexModeBytesPerLine(int Amount);
 	void AdjustHexModeBytesPerLineToViewWidth();
 
+	void HorizontalScroll(int Shift, bool LeftKeyPressed);
+
 	friend class FileViewer;
 
 	Options::ViewerOptions ViOpt;
