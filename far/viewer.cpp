@@ -1920,6 +1920,7 @@ bool Viewer::process_key(const Manager::Key& Key)
 		}
 		case KEY_LEFT: case KEY_NUMPAD4: case KEY_SHIFTNUMPAD4:
 		{
+			OutputDebugStringA(std::format("==== Key Left. DisplayMode: {}. LeftPos: {}\n"sv, std::to_underlying(m_DisplayMode.value()), LeftPos).c_str());
 			if (LeftPos>0 && ViewFile)
 			{
 				if (m_DisplayMode == VMT_HEX)
@@ -1937,6 +1938,7 @@ bool Viewer::process_key(const Manager::Key& Key)
 		}
 		case KEY_RIGHT: case KEY_NUMPAD6: case KEY_SHIFTNUMPAD6:
 		{
+			OutputDebugStringA(std::format("==== Key Right. DisplayMode: {}. LeftPos: {}\n"sv, std::to_underlying(m_DisplayMode.value()), LeftPos).c_str());
 			if (LeftPos < static_cast<int>(MaxViewLineSize()) && ViewFile && m_DisplayMode == VMT_TEXT && !m_Wrap)
 			{
 				LeftPos++;
@@ -1948,6 +1950,7 @@ bool Viewer::process_key(const Manager::Key& Key)
 		case KEY_CTRLLEFT:  case KEY_CTRLNUMPAD4:
 		case KEY_RCTRLLEFT: case KEY_RCTRLNUMPAD4:
 		{
+			OutputDebugStringA(std::format("==== Key CtrlLeft. DisplayMode: {}. LeftPos: {}\n"sv, std::to_underlying(m_DisplayMode.value()), LeftPos).c_str());
 			if (ViewFile)
 			{
 				if (m_DisplayMode == VMT_TEXT)
@@ -1969,6 +1972,7 @@ bool Viewer::process_key(const Manager::Key& Key)
 		case KEY_CTRLRIGHT:  case KEY_CTRLNUMPAD6:
 		case KEY_RCTRLRIGHT: case KEY_RCTRLNUMPAD6:
 		{
+			OutputDebugStringA(std::format("==== Key Ctrlright. DisplayMode: {}. LeftPos: {}\n"sv, std::to_underlying(m_DisplayMode.value()), LeftPos).c_str());
 			if (ViewFile)
 			{
 				if (m_DisplayMode == VMT_TEXT)
