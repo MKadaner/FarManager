@@ -256,6 +256,7 @@ private:
 	void MoveCursorAndShow(int offset);
 	void Scroll(int offset);
 	void CorrectPosition();
+	void HorizontalScroll(bool LeftKeyPressed);
 	void ShowFileList(bool Fast = true);
 	void ShowList(int ShowStatus, int StartColumn);
 	void SetShowColor(int Position, bool FileColor = true) const;

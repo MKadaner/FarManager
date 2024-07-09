@@ -319,6 +319,51 @@ void Viewer::AdjustHexModeBytesPerLineToViewWidth()
 	}
 }
 
+void Viewer::HorizontalScroll(const int Shift, const bool LeftKeyPressed)
+{
+	assert(Shift > 0);
+	assert(m_DisplayMode == VMT_TEXT || m_DisplayMode == VMT_HEX);
+
+	if (!ViewFile) return;
+
+	// Signed shift of the viewport over the contents; NewLeftPos = LeftPos + SignedShift;
+	const long long SignedShift{ LeftKeyPressed == Global->Opt->ViOpt.HorizontalArrowsMoveContents ? Shift : -Shift };
+
+	const long long MaxLeftPos{ m_DisplayMode == VMT_TEXT
+		? (!m_Wrap ? MaxViewLineSize() : LeftPos ) // If m_Wrap, do not scroll right
+		: hex_mode_line_width_from_bytes(m_HexModeBytesPerLine, get_char_size(m_Codepage)) - ScrollbarAdjustedWidth
+	};
+
+	const auto NewLeftPos{ std::max(std::min(LeftPos + SignedShift, MaxLeftPos), 0LL) };
+
+	if (NewLeftPos != LeftPos)
+	{
+		LeftPos = NewLeftPos;
+		Show();
+	}
+}
+
+void Viewer::RollContents(const bool LeftKeyPressed)
+{
+	assert(m_DisplayMode == VMT_HEX || m_DisplayMode == VMT_DUMP);
+
+	if (!ViewFile) return;
+
+	const auto CharSize = GetModeDependentCharSize();
+	const auto AlignToChar{ [&](const auto Pos) { return Pos / CharSize * CharSize; } };
+
+	// Signed shift of the viewport over the contents; NewFilePos = FilePos + SignedShift;
+	const long long SignedShift{ LeftKeyPressed == Global->Opt->ViOpt.HorizontalArrowsMoveContents ? CharSize : -CharSize };
+
+	const auto NewFilePos{ AlignToChar(std::max(std::min(FilePos + SignedShift, FileSize - 1), 0LL)) };
+
+	if (NewFilePos != FilePos)
+	{
+		FilePos = NewFilePos;
+		Show();
+	}
+}
+
 struct Viewer::ViewerUndoData
 {
 	ViewerUndoData(long long UndoAddr, long long UndoLeft):
@@ -1128,7 +1173,7 @@ void Viewer::ReadString(ViewerString *pString, int MaxSize, bool update_cache)
 	{
 		const auto fpos = fpos1;
 
-		if (OutPtr >= static_cast<int>(MaxViewLineSize()))
+		if (OutPtr >= MaxViewLineSize())
 			break;
 
 		if (--nTab >= 0)
@@ -1870,74 +1915,35 @@ bool Viewer::process_key(const Manager::Key& Key)
 		}
 		case KEY_LEFT: case KEY_NUMPAD4: case KEY_SHIFTNUMPAD4:
 		{
-			if (LeftPos>0 && ViewFile)
-			{
-				if (m_DisplayMode == VMT_HEX)
-				{
-					LeftPos = std::min(
-						LeftPos,
-						static_cast<long long>(std::max(hex_mode_line_width_from_bytes(m_HexModeBytesPerLine, get_char_size(m_Codepage)) - ScrollbarAdjustedWidth, 1)));
-				}
-
-				LeftPos--;
-				Show();
-			}
+			if (m_DisplayMode != VMT_DUMP)
+				HorizontalScroll(1, true);
 
 			return true;
 		}
 		case KEY_RIGHT: case KEY_NUMPAD6: case KEY_SHIFTNUMPAD6:
 		{
-			if (LeftPos < static_cast<int>(MaxViewLineSize()) && ViewFile && m_DisplayMode == VMT_TEXT && !m_Wrap)
-			{
-				LeftPos++;
-				Show();
-			}
+			if (m_DisplayMode != VMT_DUMP)
+				HorizontalScroll(1, false);
 
 			return true;
 		}
 		case KEY_CTRLLEFT:  case KEY_CTRLNUMPAD4:
 		case KEY_RCTRLLEFT: case KEY_RCTRLNUMPAD4:
 		{
-			if (ViewFile)
-			{
-				if (m_DisplayMode == VMT_TEXT)
-				{
-					LeftPos = LeftPos > 20? LeftPos - 20 : 0;
-				}
-				else
-				{
-					const auto CharSize = GetModeDependentCharSize();
-					FilePos = FilePos > CharSize? FilePos - CharSize : 0;
-					FilePos -= FilePos % CharSize;
-				}
-
-				Show();
-			}
+			if (m_DisplayMode == VMT_TEXT)
+				HorizontalScroll(20, true);
+			else
+				RollContents(true);
 
 			return true;
 		}
 		case KEY_CTRLRIGHT:  case KEY_CTRLNUMPAD6:
 		case KEY_RCTRLRIGHT: case KEY_RCTRLNUMPAD6:
 		{
-			if (ViewFile)
-			{
-				if (m_DisplayMode == VMT_TEXT)
-				{
-					if (!m_Wrap)
-					{
-						LeftPos = std::min(LeftPos + 20, static_cast<long long>(MaxViewLineSize()));
-					}
-				}
-				else
-				{
-					const auto CharSize = GetModeDependentCharSize();
-					FilePos -= FilePos % CharSize;
-					FilePos = FilePos < FileSize - CharSize? FilePos + CharSize : FileSize-1;
-					FilePos -= FilePos % CharSize;
-				}
-
-				Show();
-			}
+			if (m_DisplayMode == VMT_TEXT)
+				HorizontalScroll(20, false);
+			else
+				RollContents(false);
 
 			return true;
 		}

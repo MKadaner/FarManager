@@ -613,6 +613,7 @@ public:
 		BoolOption ViewerWrap; // Wrap=0|WordWarp=1
 		BoolOption Visible0x00;
 		IntOption ZeroChar;
+		BoolOption HorizontalArrowsMoveContents;
 	};
 
 	struct PoliciesOptions
@@ -636,6 +637,7 @@ public:
 		IntOption LBtnClick;
 		IntOption RBtnClick;
 		IntOption MBtnClick;
+		BoolOption HorizontalArrowsMoveContents;
 	};
 
 	struct CommandLineOptions

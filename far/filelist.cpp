@@ -634,6 +634,20 @@ void FileList::CorrectPosition()
 		m_CurTopFile=m_CurFile-m_Stripes*m_Height+1;
 }
 
+void FileList::HorizontalScroll(const bool LeftKeyPressed)
+{
+	if (LeftKeyPressed == Global->Opt->VMenu.HorizontalArrowsMoveContents)
+	{
+		if (LeftPos != std::numeric_limits<decltype(LeftPos)>::max())
+			++LeftPos;
+	}
+	else
+	{
+		if (LeftPos != std::numeric_limits<decltype(LeftPos)>::min())
+			--LeftPos;
+	}
+}
+
 class list_less
 {
 public:
@@ -1360,8 +1374,7 @@ bool FileList::ProcessKey(const Manager::Key& Key)
 
 		case KEY_ALTLEFT:     // Прокрутка длинных имен и описаний
 		case KEY_RALTLEFT:
-			if (LeftPos != std::numeric_limits<decltype(LeftPos)>::min())
-				--LeftPos;
+			HorizontalScroll(true);
 			Redraw();
 			return true;
 
@@ -1373,8 +1386,7 @@ bool FileList::ProcessKey(const Manager::Key& Key)
 
 		case KEY_ALTRIGHT:    // Прокрутка длинных имен и описаний
 		case KEY_RALTRIGHT:
-			if (LeftPos != std::numeric_limits<decltype(LeftPos)>::max())
-				++LeftPos;
+			HorizontalScroll(false);
 			Redraw();
 			return true;
 

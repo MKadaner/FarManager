@@ -1,4 +1,13 @@
 --------------------------------------------------------------------------------
+MZK 2024-07-07 22:25:24-04:00 - build 6345
+
+1. New far:config settings:
+   - Viewer.HorizontalArrowsMoveContents
+   - VMenu.HorizontalArrowsMoveContents
+   When True, these settings change horizontal scrolling direction
+   in the Internal Viewer and VMenu / Lists respectively.
+
+--------------------------------------------------------------------------------
 drkns 2024-06-26 18:12:34+01:00 - build 6344
 
 1. Fix 5281.2.

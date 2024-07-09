@@ -6626,6 +6626,36 @@ or the search starting point.
  This parameter can be changed via ~far:config~@FarConfig@ only.
 
 
+@Viewer.HorizontalArrowsMoveContents
+$ #far:config Viewer.HorizontalArrowsMoveContents#
+ This Boolean parameter controls the behavior of the horizontal scrolling
+in the ~internal~@Viewer@.
+
+ False - ^<wrap>#Left# arrow moves the contents to the right, #Right# arrow moves the contents to the left.
+In other words, these keys move the viewport over the contents.
+ True  - #Left# arrow moves the contents to the left, #Right# arrow moves the contents to the right.
+I.e., these keys move the the contents inside the viewport.
+
+ Default value: False (arrow keys move the viewport).
+
+ This parameter can be changed via ~far:config~@FarConfig@ only.
+
+
+@VMenu.HorizontalArrowsMoveContents
+$ #far:config VMenu.HorizontalArrowsMoveContents#
+ This Boolean parameter controls the behavior of the horizontal scrolling
+of ~menu~@MenuCmd@ and list box items.
+
+ False - ^<wrap>#Left# arrow moves the items to the right, #Right# arrow moves the items to the left.
+In other words, these keys move the viewport over the items.
+ True  - #Left# arrow moves the items to the left, #Right# arrow moves the items to the right.
+I.e., these keys move the items inside the viewport.
+
+ Default value: False (arrow keys move the viewport).
+
+ This parameter can be changed via ~far:config~@FarConfig@ only.
+
+
 @XLat.Layouts
 $ #far:config XLat.Layouts#
  This string parameter defines the input locales (keyboard layouts)
