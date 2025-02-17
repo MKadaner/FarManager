@@ -3411,6 +3411,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 	string QuotedStr;
 	const auto FindAllList = VMenu2::create({}, {});
 	size_t AllRefLines{};
+	constexpr int service_len{ 12 };
 
 	{
 		HideCursor();
@@ -3504,10 +3505,9 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 				if(FindAll)
 				{
-					constexpr int service_len{ 12 };
 					const auto Location{ far::format(L"{}:{}"sv, m_FoundLine.Number() + 1, m_FoundPos + 1) };
-					MenuItemEx Item{ far::format(L"{:{}}{}{}"sv, Location, service_len, BoxSymbols[BS_V1], m_FoundLine->GetString()) };
-					Item.Annotations.emplace_back(m_FoundPos + service_len + 1, segment::length_tag{ m_FoundSize });
+					MenuItemEx Item{ far::format(L"{:{}}{}"sv, Location, service_len, m_FoundLine->GetString()) };
+					Item.Annotations.emplace_back(m_FoundPos, segment::length_tag{ m_FoundSize });
 					Item.ComplexUserData = FindCoord{ m_FoundLine.Number(), m_FoundPos, m_FoundSize };
 					FindAllList->AddItem(Item);
 
@@ -3767,6 +3767,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 		FindAllList->SetPosition({ -1, MenuY1, 0, MenuY2 });
 		FindAllList->SetTitle(far::vformat(msg(lng::MEditSearchStatistics), FindAllList->size(), AllRefLines));
 		FindAllList->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
+		FindAllList->SetFixedLeftColumn(service_len, service_len);
 		FindAllList->SetHelp(L"FindAllMenu"sv);
 		FindAllList->SetId(EditorFindAllListId);
 
