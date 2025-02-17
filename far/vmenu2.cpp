@@ -418,6 +418,11 @@ void VMenu2::SetMenuFlags(DWORD Flags)
 	SendMessage(DM_SETDLGITEMSHORT, 0, &fdi);
 }
 
+void VMenu2::SetFixedLeftColumn(int LeftColumnWidth, int VisibleLeftColumnWidth)
+{
+	ListBox().SetFixedLeftColumn(LeftColumnWidth, VisibleLeftColumnWidth);
+}
+
 void VMenu2::AssignHighlights(bool Reverse)
 {
 	SetMenuFlags(VMENU_AUTOHIGHLIGHT | (Reverse? VMENU_REVERSEHIGHLIGHT : VMENU_NONE));
