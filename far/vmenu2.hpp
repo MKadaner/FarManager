@@ -70,6 +70,7 @@ public:
 	void SetBottomTitle(const string& Title);
 	void SetBoxType(int BoxType);
 	void SetMenuFlags(DWORD Flags);
+	void SetFixedLeftColumn(int LeftColumnWidth, int VisibleLeftColumnWidth);
 	void AssignHighlights(bool Reverse = false);
 	void clear();
 	int DeleteItem(int ID,int Count=1);
