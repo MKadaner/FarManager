@@ -85,6 +85,8 @@ struct menu_layout
 	small_rectangle ClientRect{};
 	std::optional<short> LeftBox;
 	std::optional<short> CheckMark;
+	std::optional<std::pair<short, short>> LeftColumnArea; // Begin, Width
+	std::optional<short> LeftColumnBorder;
 	std::optional<short> LeftHScroll;
 	std::optional<std::pair<short, short>> TextArea; // Begin, Width
 	std::optional<short> RightHScroll;
@@ -99,7 +101,14 @@ struct menu_layout
 		auto Left{ Menu.m_Where.left };
 		if (need_box(BoxType))       LeftBox = Left++;
 		if (need_check_mark())       CheckMark = Left++;
-		if (need_left_hscroll())     LeftHScroll = Left++;
+		if (need_left_column(Menu))
+		{
+			LeftColumnArea = { Left, Menu.m_LeftColumnWidth };
+			Left += Menu.m_LeftColumnWidth;
+			LeftColumnBorder = Left;
+		}
+		if (need_left_hscroll())     LeftHScroll = Left;
+		if (LeftColumnBorder || LeftHScroll) Left++;
 
 		auto Right{ Menu.m_Where.right };
 		if (need_box(BoxType))       RightBox = Right;
@@ -147,6 +156,7 @@ struct menu_layout
 
 		return NeedBox
 			+ need_check_mark()
+			// TBD
 			+ need_left_hscroll()
 			+ need_right_hscroll()
 			+ need_submenu(Menu)
@@ -165,6 +175,7 @@ private:
 	[[nodiscard]] static bool need_box(short BoxType) noexcept { return BoxType != NO_BOX; }
 	[[nodiscard]] static bool need_check_mark() noexcept { return true; }
 	[[nodiscard]] static bool need_left_hscroll() noexcept { return true; }
+	[[nodiscard]] static bool need_left_column(const VMenu& Menu) noexcept { return Menu.m_LeftColumnWidth > 0; }
 	[[nodiscard]] static bool need_right_hscroll() noexcept { return true; }
 	[[nodiscard]] static bool need_submenu(const VMenu& Menu) noexcept { return Menu.ItemSubMenusCount > 0; }
 	[[nodiscard]] static bool need_scrollbar(const VMenu& Menu, short const BoxType)
@@ -2390,7 +2401,6 @@ bool VMenu::AlignAnnotations()
 void VMenu::Show()
 {
 	const auto BoxType{ menu_layout::get_box_type(*this) };
-	const auto ServiceAreaSize = menu_layout::get_service_area_size(*this, BoxType);
 
 	if (!CheckFlags(VMENU_LISTBOX))
 	{
@@ -2398,7 +2408,8 @@ void VMenu::Show()
 
 		if (!CheckFlags(VMENU_COMBOBOX))
 		{
-			const auto VisibleMaxItemLength = std::min(ScrX > ServiceAreaSize? ScrX - ServiceAreaSize : 0, m_MaxItemLength);
+			const auto ServiceAreaSize = menu_layout::get_service_area_size(*this, BoxType);
+			const auto VisibleMaxItemLength = std::min(std::max(ScrX - ServiceAreaSize, 0), m_MaxItemLength);
 			const auto MenuWidth = ServiceAreaSize + VisibleMaxItemLength;
 
 			bool AutoCenter = false;
@@ -3032,6 +3043,13 @@ void VMenu::SetTitle(string_view const Title)
 	strTitle = Title;
 
 	UpdateMaxLength(static_cast<int>(strTitle.size() + 2));
+}
+
+void VMenu::SetFixedLeftColumn(int const LeftColumnWidth, int const VisibleLeftColumnWidth)
+{
+	assert(LeftColumnWidth >= 0);
+	m_LeftColumnWidth = LeftColumnWidth;
+	m_VisibleLeftColumnWidth = std::clamp(VisibleLeftColumnWidth >= 0 ? VisibleLeftColumnWidth : m_VisibleLeftColumnWidth, 0, m_LeftColumnWidth);
 }
 
 void VMenu::ResizeConsole()

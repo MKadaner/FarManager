@@ -71,7 +71,7 @@ enum VMENU_FLAGS
 	VMENU_WRAPMODE               = 15_bit, // зацикленный список (при перемещении)
 	VMENU_SHOWAMPERSAND          = 16_bit, // символ '&' показывать AS IS
 	VMENU_WARNDIALOG             = 17_bit, //
-	VMENU_ENABLEALIGNANNOTATIONS = 18_bit, // Enable vertical alignment of item annotations and HscrollEnBlocMode
+	VMENU_ENABLEALIGNANNOTATIONS = 18_bit, // Enable vertical alignment of item annotations and item_hscroll_policy::unbound
 	VMENU_LISTHASFOCUS           = 21_bit, // меню является списком в диалоге и имеет фокус
 	VMENU_COMBOBOX               = 22_bit, // меню является комбобоксом и обрабатывается менеджером по-особому.
 	VMENU_MOUSEDOWN              = 23_bit, //
@@ -142,7 +142,7 @@ struct MenuItemEx: menu_item
 	std::any ComplexUserData;
 	intptr_t SimpleUserData{};
 
-	int HorizontalPosition{}; // Positive: Indent; Negative: Hanging
+	int HorizontalPosition{}; // Relative to m_LeftColumnWidth. Positive: Indent; Negative: Hanging
 	wchar_t AutoHotkey{};
 	size_t AutoHotkeyPos{};
 	std::list<std::pair<int, int>> Annotations;
@@ -190,6 +190,7 @@ public:
 	void SetDialogStyle(bool Style) { ChangeFlags(VMENU_WARNDIALOG, Style); SetColors(nullptr); }
 	void SetUpdateRequired(bool SetUpdate) { ChangeFlags(VMENU_UPDATEREQUIRED, SetUpdate); }
 	void SetMenuFlags(DWORD Flags) { VMFlags.Set(Flags); }
+	void SetFixedLeftColumn(int LeftColumnWidth, int VisibleLeftColumnWidth);
 	void ClearFlags(DWORD Flags) { VMFlags.Clear(Flags); }
 	bool CheckFlags(DWORD Flags) const { return VMFlags.Check(Flags); }
 	DWORD GetFlags() const { return VMFlags.Flags(); }
@@ -321,6 +322,10 @@ private:
 	bool WasAutoHeight{};
 	int m_MaxItemLength{};
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
+	// The width of the fixed vertical column at the left side of each item. If zero, there is no fixed vertical column.
+	int m_LeftColumnWidth{};
+	// Current visible width of the fixed vertical column. If m_LeftColumnWidth > 0, the value is in the range [0, m_LeftColumnWidth].
+	int m_VisibleLeftColumnWidth{};
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};
