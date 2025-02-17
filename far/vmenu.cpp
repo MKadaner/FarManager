@@ -156,8 +156,7 @@ struct menu_layout
 
 		return NeedBox
 			+ need_check_mark()
-			// TBD
-			+ need_left_hscroll()
+			+ (need_left_column(Menu) || need_left_hscroll())
 			+ need_right_hscroll()
 			+ need_submenu(Menu)
 			+ (NeedBox || need_scrollbar(Menu, BoxType));
@@ -537,7 +536,7 @@ namespace
 	}
 
 	// Indices in the color array
-	enum class color_indices
+	enum class vmenu_color_index
 	{
 		Body                = 0,     // background
 		Box                 = 1,     // border
@@ -558,21 +557,21 @@ namespace
 		COUNT                        // always the last - array dimension
 	};
 
-	static_assert(std::tuple_size_v<vmenu_colors_t> == std::to_underlying(color_indices::COUNT));
+	static_assert(std::tuple_size_v<vmenu_colors_t> == std::to_underlying(vmenu_color_index::COUNT));
 
-	[[nodiscard]] const FarColor& get_color(const vmenu_colors_t& VMenuColors, color_indices ColorIndex) noexcept
+	[[nodiscard]] const FarColor& get_color(const vmenu_colors_t& VMenuColors, vmenu_color_index ColorIndex) noexcept
 	{
 		return VMenuColors[std::to_underlying(ColorIndex)];
 	}
 
-	void set_color(const vmenu_colors_t& VMenuColors, color_indices ColorIndex)
+	void set_color(const vmenu_colors_t& VMenuColors, vmenu_color_index ColorIndex)
 	{
 		SetColor(get_color(VMenuColors, ColorIndex));
 	}
 
 	struct item_color_indicies
 	{
-		color_indices Normal, Highlighted, HScroller;
+		vmenu_color_index Normal, Highlighted, HScroller;
 
 		explicit item_color_indicies(const MenuItemEx& CurItem)
 		{
@@ -580,27 +579,27 @@ namespace
 
 			if (CurItem.Flags & LIF_DISABLE)
 			{
-				Normal = color_indices::Disabled;
-				Highlighted = color_indices::Disabled;
-				HScroller = color_indices::ArrowsDisabled;
+				Normal = vmenu_color_index::Disabled;
+				Highlighted = vmenu_color_index::Disabled;
+				HScroller = vmenu_color_index::ArrowsDisabled;
 				return;
 			}
 
 			if (CurItem.Flags & LIF_SELECTED)
 			{
-				Normal = Grayed ? color_indices::SelGrayed : color_indices::Selected;
-				Highlighted = Grayed ? color_indices::SelGrayed : color_indices::HSelect;
-				HScroller = color_indices::ArrowsSelect;
+				Normal = Grayed ? vmenu_color_index::SelGrayed : vmenu_color_index::Selected;
+				Highlighted = Grayed ? vmenu_color_index::SelGrayed : vmenu_color_index::HSelect;
+				HScroller = vmenu_color_index::ArrowsSelect;
 				return;
 			}
 
-			Normal = Grayed ? color_indices::Grayed : color_indices::Text;
-			Highlighted = Grayed ? color_indices::Grayed : color_indices::Highlight;
-			HScroller = color_indices::Arrows;
+			Normal = Grayed ? vmenu_color_index::Grayed : vmenu_color_index::Text;
+			Highlighted = Grayed ? vmenu_color_index::Grayed : vmenu_color_index::Highlight;
+			HScroller = vmenu_color_index::Arrows;
 		}
 	};
 
-	std::tuple<color_indices, wchar_t> get_item_check_mark(const MenuItemEx& CurItem, item_color_indicies ColorIndices) noexcept
+	std::tuple<vmenu_color_index, wchar_t> get_item_check_mark(const MenuItemEx& CurItem, item_color_indicies ColorIndices) noexcept
 	{
 		return
 		{
@@ -611,7 +610,7 @@ namespace
 		};
 	}
 
-	std::tuple<color_indices, wchar_t> get_item_submenu(const MenuItemEx& CurItem, item_color_indicies ColorIndices) noexcept
+	std::tuple<vmenu_color_index, wchar_t> get_item_submenu(const MenuItemEx& CurItem, item_color_indicies ColorIndices) noexcept
 	{
 		return
 		{
@@ -620,16 +619,19 @@ namespace
 		};
 	}
 
-	std::tuple<color_indices, wchar_t> get_item_left_hscroll(const bool NeedLeftHScroll, item_color_indicies ColorIndices) noexcept
+	std::tuple<vmenu_color_index, wchar_t> get_item_left_column_separator_or_left_hscroll(
+		const bool NeedLeftColumnSeparator, const bool NeedLeftHScroll, item_color_indicies ColorIndices) noexcept
 	{
 		return
 		{
 			NeedLeftHScroll ? ColorIndices.HScroller : ColorIndices.Normal,
-			NeedLeftHScroll ? L'«' : L' '
+			NeedLeftHScroll
+				? L'«'
+				: NeedLeftColumnSeparator ? BoxSymbols[BS_V1] : L' '
 		};
 	}
 
-	std::tuple<color_indices, wchar_t> get_item_right_hscroll(const bool NeedRightHScroll, item_color_indicies ColorIndices) noexcept
+	std::tuple<vmenu_color_index, wchar_t> get_item_right_hscroll(const bool NeedRightHScroll, item_color_indicies ColorIndices) noexcept
 	{
 		return
 		{
@@ -2400,14 +2402,13 @@ bool VMenu::AlignAnnotations()
 
 void VMenu::Show()
 {
-	const auto BoxType{ menu_layout::get_box_type(*this) };
-
 	if (!CheckFlags(VMENU_LISTBOX))
 	{
 		bool AutoHeight = false;
 
 		if (!CheckFlags(VMENU_COMBOBOX))
 		{
+			const auto BoxType{ menu_layout::get_box_type(*this) };
 			const auto ServiceAreaSize = menu_layout::get_service_area_size(*this, BoxType);
 			const auto VisibleMaxItemLength = std::min(std::max(ScrX - ServiceAreaSize, 0), m_MaxItemLength);
 			const auto MenuWidth = ServiceAreaSize + VisibleMaxItemLength;
@@ -2533,18 +2534,18 @@ void VMenu::DisplayObject()
 
 		if (BoxType==SHORT_DOUBLE_BOX || BoxType==SHORT_SINGLE_BOX)
 		{
-			SetScreen(m_Where, L' ', get_color(Colors, color_indices::Body));
-			Box(m_Where, get_color(Colors, color_indices::Box), BoxType);
+			SetScreen(m_Where, L' ', get_color(Colors, vmenu_color_index::Body));
+			Box(m_Where, get_color(Colors, vmenu_color_index::Box), BoxType);
 		}
 		else
 		{
 			if (BoxType!=NO_BOX)
-				SetScreen({ m_Where.left - 2, m_Where.top - 1, m_Where.right + 2, m_Where.bottom + 1 }, L' ', get_color(Colors, color_indices::Body));
+				SetScreen({ m_Where.left - 2, m_Where.top - 1, m_Where.right + 2, m_Where.bottom + 1 }, L' ', get_color(Colors, vmenu_color_index::Body));
 			else
-				SetScreen(m_Where, L' ', get_color(Colors, color_indices::Body));
+				SetScreen(m_Where, L' ', get_color(Colors, vmenu_color_index::Body));
 
 			if (BoxType!=NO_BOX)
-				Box(m_Where, get_color(Colors, color_indices::Box), BoxType);
+				Box(m_Where, get_color(Colors, vmenu_color_index::Box), BoxType);
 		}
 
 		//SetMenuFlags(VMENU_DISABLEDRAWBACKGROUND);
@@ -2567,14 +2568,14 @@ void VMenu::DrawMenu()
 	}
 
 	// 2023-12-09 MZK: Do we need this? Why?
-	// 2023-12-28 MZK: OK, at least combo box maybe refreshed without DisplayObject(); then vertical borders are garbled by separators.
+	// 2023-12-28 MZK: OK, at least combo box may be refreshed without DisplayObject(); then vertical borders are garbled by separators.
 	if (CheckFlags(VMENU_LISTBOX | VMENU_COMBOBOX))
 	{
 		if (!GetShowItemCount())
-			SetScreen(m_Where, L' ', get_color(Colors, color_indices::Body));
+			SetScreen(m_Where, L' ', get_color(Colors, vmenu_color_index::Body));
 
 		if (Layout.BoxType!=NO_BOX)
-			Box(m_Where, get_color(Colors, color_indices::Box), Layout.BoxType);
+			Box(m_Where, get_color(Colors, vmenu_color_index::Box), Layout.BoxType);
 
 		DrawTitles();
 	}
@@ -2598,7 +2599,7 @@ void VMenu::DrawMenu()
 		if (I >= static_cast<int>(Items.size()))
 		{
 			GotoXY(Layout.ClientRect.left, Y);
-			set_color(Colors, color_indices::Text);
+			set_color(Colors, vmenu_color_index::Text);
 			Text(BlankLine);
 			continue;
 		}
@@ -2620,7 +2621,7 @@ void VMenu::DrawMenu()
 
 	if (Layout.Scrollbar)
 	{
-		set_color(Colors, color_indices::ScrollBar);
+		set_color(Colors, vmenu_color_index::ScrollBar);
 		ScrollBar(*Layout.Scrollbar, Layout.ClientRect.top, Layout.ClientRect.height(), VisualTopPos, GetShowItemCount());
 	}
 }
@@ -2651,7 +2652,7 @@ void VMenu::DrawTitles() const
 			WidthTitle = MaxTitleLength - 1;
 
 		GotoXY(m_Where.left + (m_Where.width() - 2 - WidthTitle) / 2, m_Where.top);
-		set_color(Colors, color_indices::Title);
+		set_color(Colors, vmenu_color_index::Title);
 
 		Text(concat(L' ', string_view(strDisplayTitle).substr(0, WidthTitle), L' '));
 	}
@@ -2664,14 +2665,14 @@ void VMenu::DrawTitles() const
 			WidthTitle = MaxTitleLength - 1;
 
 		GotoXY(m_Where.left + (m_Where.width() - 2 - WidthTitle) / 2, m_Where.bottom);
-		set_color(Colors, color_indices::Title);
+		set_color(Colors, vmenu_color_index::Title);
 
 		Text(concat(L' ', string_view(strBottomTitle).substr(0, WidthTitle), L' '));
 	}
 
 	if constexpr ((false))
 	{
-		set_color(Colors, color_indices::Title);
+		set_color(Colors, vmenu_color_index::Title);
 
 		GotoXY(m_Where.left + 2, m_Where.bottom);
 		Text(m_HorizontalTracker->get_debug_string());
@@ -2736,7 +2737,7 @@ void VMenu::DrawSeparator(const size_t ItemIndex, const int BoxType, const int Y
 
 	ConnectSeparator(ItemIndex, separator, BoxType);
 	ApplySeparatorName(Items[ItemIndex], separator);
-	set_color(Colors, color_indices::Separator);
+	set_color(Colors, vmenu_color_index::Separator);
 	GotoXY(m_Where.left, Y);
 	Text(separator);
 }
@@ -2789,6 +2790,16 @@ void VMenu::ApplySeparatorName(const MenuItemEx& Item, string& separator) const
 
 void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, const int Y, std::vector<int>& HighlightMarkup, const string_view BlankLine) const
 {
+	if (Layout.LeftColumnArea)
+	{
+		const auto [LeftColumnAreaBegin, LeftColumnAreaWidth] { *Layout.LeftColumnArea };
+		GotoXY(LeftColumnAreaBegin, Y);
+		set_color(Colors, ColorIndices.Normal);
+		Text(string_view{ ItemTextToDisplay }.substr(ItemTextPos, SliceEnd - ItemTextPos));
+		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
+
+	}
+
 	if (!Layout.TextArea) return;
 
 	const auto [TextAreaBegin, TextAreaWidth] { *Layout.TextArea };
@@ -2846,24 +2857,84 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	set_color(Colors, ColorIndices.Normal);
 	Text(BlankLine.substr(0, TextAreaBegin + TextAreaWidth - WhereX()));
 
-	const auto DrawDecorator = [&](const int X, std::tuple<color_indices, wchar_t> ColorAndChar)
+	const auto DrawDecorator = [&](const int X, std::tuple<vmenu_color_index, wchar_t> ColorAndChar)
 		{
 			GotoXY(X, Y);
-			set_color(Colors, std::get<color_indices>(ColorAndChar));
+			set_color(Colors, std::get<vmenu_color_index>(ColorAndChar));
 			Text(std::get<wchar_t>(ColorAndChar));
 		};
 
 	if (Layout.CheckMark)
 		DrawDecorator(*Layout.CheckMark, get_item_check_mark(Item, ColorIndices));
 
-	if (Layout.LeftHScroll)
-		DrawDecorator(*Layout.LeftHScroll, get_item_left_hscroll(Item.HorizontalPosition < 0, ColorIndices));
+	assert(!Layout.LeftColumnBorder || !Layout.LeftHScroll || *Layout.LeftColumnBorder == *Layout.LeftHScroll);
+	if (Layout.LeftColumnBorder || Layout.LeftHScroll)
+		DrawDecorator(
+			*Layout.LeftColumnBorder,
+			get_item_left_column_separator_or_left_hscroll(Layout.LeftColumnBorder.has_value(), Item.HorizontalPosition < 0, ColorIndices));
 
 	if (Layout.SubMenu)
 		DrawDecorator(*Layout.SubMenu, get_item_submenu(Item, ColorIndices));
 
 	if (Layout.RightHScroll)
 		DrawDecorator(*Layout.RightHScroll, get_item_right_hscroll(Item.HorizontalPosition + ItemTextSize > TextAreaWidth, ColorIndices));
+}
+
+void VMenu::DrawRegularItemText(
+	const string_view ItemText,
+	const int HorizontalPosition,
+	const std::pair<short, short> CellArea,
+	const int Y,
+	const item_color_indicies& ColorIndices,
+	std::vector<int>& HighlightMarkup,
+	const string_view BlankLine) const
+{
+	auto CurColorIndex{ ColorIndices.Normal };
+	auto AltColorIndex{ ColorIndices.Highlighted };
+
+	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) };
+
+	const auto [ItemTextBegin, ItemTextEnd] { intersect({ 0, ItemTextSize }, { -Item.HorizontalPosition, TextAreaWidth - Item.HorizontalPosition }) };
+
+	if (ItemTextBegin < ItemTextEnd)
+	{
+		HighlightMarkup.clear();
+		if (!Item.Annotations.empty())
+		{
+			markup_slice_boundaries(
+				std::pair{ ItemTextBegin, ItemTextEnd },
+				Item.Annotations | std::views::transform([](const auto Ann) { return std::pair{ Ann.first, Ann.first + Ann.second }; }),
+				HighlightMarkup);
+		}
+		else if (HotkeyPos != string::npos || Item.AutoHotkey)
+		{
+			const auto HighlightPos = static_cast<int>(HotkeyPos != string::npos? HotkeyPos : Item.AutoHotkeyPos);
+			markup_slice_boundaries(
+				std::pair{ ItemTextBegin, ItemTextEnd },
+				std::views::single(std::pair{ HighlightPos, HighlightPos + 1 }),
+				HighlightMarkup);
+		}
+		else
+		{
+			HighlightMarkup.emplace_back(ItemTextEnd);
+		}
+
+		set_color(Colors, ColorIndices.Normal);
+		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
+
+		auto ItemTextPos{ ItemTextBegin };
+
+		for (const auto SliceEnd : HighlightMarkup)
+		{
+			set_color(Colors, CurColorIndex);
+			Text(string_view{ ItemTextToDisplay }.substr(ItemTextPos, SliceEnd - ItemTextPos));
+			std::ranges::swap(CurColorIndex, AltColorIndex);
+			ItemTextPos = SliceEnd;
+		}
+	}
+
+	set_color(Colors, ColorIndices.Normal);
+	Text(BlankLine.substr(0, TextAreaBegin + TextAreaWidth - WhereX()));
 }
 
 int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
@@ -3240,12 +3311,7 @@ bool VMenu::GetVMenuInfo(FarListInfo* Info) const
 		Info->TopPos = TopPos;
 		Info->MaxHeight = MaxHeight;
 		// BUGBUG
-		const auto ServiceAreaSize = menu_layout::get_service_area_size(*this);
-		if (m_Where.width() > ServiceAreaSize)
-			Info->MaxLength = m_Where.width() - ServiceAreaSize;
-		else
-			Info->MaxLength = 0;
-		return true;
+		Info->MaxLength = std::max(m_Where.width() - menu_layout::get_service_area_size(*this), 0);
 	}
 
 	return false;

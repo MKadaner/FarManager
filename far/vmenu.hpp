@@ -287,6 +287,14 @@ private:
 	void ConnectSeparator(size_t ItemIndex, string& separator, int BoxType) const;
 	void ApplySeparatorName(const MenuItemEx& Item, string& separator) const;
 	void DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, int Y, std::vector<int>& HighlightMarkup, string_view BlankLine) const;
+	void DrawRegularItemText(
+		string_view ItemText,
+		int HorizontalPosition,
+		std::pair<short, short> CellArea,
+		int Y,
+		const item_color_indicies& ColorIndices,
+		std::vector<int>& HighlightMarkup,
+		string_view BlankLine) const;
 
 	[[nodiscard]] int CalculateTextAreaWidth() const;
 
