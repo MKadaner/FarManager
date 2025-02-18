@@ -455,6 +455,38 @@ namespace
 		Markup.emplace_back(Segment.second);
 	}
 
+	bool markup_slice_boundaries(
+		std::pair<int, int> Segment,
+		const std::list<std::pair<int, int>>& Annotations,
+		const std::optional<int> HotkeyPos,
+		std::vector<int>& HighlightMarkup)
+	{
+		if (Segment.first >= Segment.second) return false;
+
+		HighlightMarkup.clear();
+
+		if (!Annotations.empty())
+		{
+			markup_slice_boundaries(
+				Segment,
+				Annotations | std::views::transform([](const auto Ann) { return std::pair{ Ann.first, Ann.first + Ann.second }; }),
+				HighlightMarkup);
+			return true;
+		}
+
+		if (HotkeyPos)
+		{
+			markup_slice_boundaries(
+				Segment,
+				std::views::single(std::pair{ *HotkeyPos, *HotkeyPos + 1 }),
+				HighlightMarkup);
+			return true;
+		}
+
+		HighlightMarkup.emplace_back(Segment.second);
+		return true;
+	}
+
 	bool item_flags_allow_focus(unsigned long long const Flags)
 	{
 		return !(Flags & (LIF_DISABLE | LIF_HIDDEN | LIF_FILTERED | LIF_SEPARATOR));
@@ -2790,15 +2822,15 @@ void VMenu::ApplySeparatorName(const MenuItemEx& Item, string& separator) const
 
 void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, const int Y, std::vector<int>& HighlightMarkup, const string_view BlankLine) const
 {
-	if (Layout.LeftColumnArea)
-	{
-		const auto [LeftColumnAreaBegin, LeftColumnAreaWidth] { *Layout.LeftColumnArea };
-		GotoXY(LeftColumnAreaBegin, Y);
-		set_color(Colors, ColorIndices.Normal);
-		Text(string_view{ ItemTextToDisplay }.substr(ItemTextPos, SliceEnd - ItemTextPos));
-		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
+	//if (Layout.LeftColumnArea)
+	//{
+	//	const auto [LeftColumnAreaBegin, LeftColumnAreaWidth] { *Layout.LeftColumnArea };
+	//	GotoXY(LeftColumnAreaBegin, Y);
+	//	set_color(Colors, ColorIndices.Normal);
+	//	Text(string_view{ ItemTextToDisplay }.substr(ItemTextPos, SliceEnd - ItemTextPos));
+	//	Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
 
-	}
+	//}
 
 	if (!Layout.TextArea) return;
 
@@ -2810,40 +2842,25 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	auto CurColorIndex{ ColorIndices.Normal };
 	auto AltColorIndex{ ColorIndices.Highlighted };
 
-	size_t HotkeyPos = string::npos;
-	auto ItemTextToDisplay = CheckFlags(VMENU_SHOWAMPERSAND)? Item.Name : HiText2Str(Item.Name, &HotkeyPos);
+	size_t UserHotkeyPos = string::npos;
+	auto ItemTextToDisplay = CheckFlags(VMENU_SHOWAMPERSAND)? Item.Name : HiText2Str(Item.Name, &UserHotkeyPos);
 	std::ranges::replace(ItemTextToDisplay, L'\t', L' ');
+
+	const auto HotkeyPos{
+		UserHotkeyPos != string::npos
+			? std::optional{ static_cast<int>(UserHotkeyPos) }
+			: Item.AutoHotkey ? std::optional{ static_cast<int>(Item.AutoHotkeyPos) } : std::nullopt };
+
 	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) };
 
-	const auto [ItemTextBegin, ItemTextEnd] { intersect({ 0, ItemTextSize }, { -Item.HorizontalPosition, TextAreaWidth - Item.HorizontalPosition }) };
+	const auto ItemTextSegment{ intersect({ 0, ItemTextSize }, { -Item.HorizontalPosition, TextAreaWidth - Item.HorizontalPosition }) };
 
-	if (ItemTextBegin < ItemTextEnd)
+	if (markup_slice_boundaries(ItemTextSegment, Item.Annotations, HotkeyPos, HighlightMarkup))
 	{
-		HighlightMarkup.clear();
-		if (!Item.Annotations.empty())
-		{
-			markup_slice_boundaries(
-				std::pair{ ItemTextBegin, ItemTextEnd },
-				Item.Annotations | std::views::transform([](const auto Ann) { return std::pair{ Ann.first, Ann.first + Ann.second }; }),
-				HighlightMarkup);
-		}
-		else if (HotkeyPos != string::npos || Item.AutoHotkey)
-		{
-			const auto HighlightPos = static_cast<int>(HotkeyPos != string::npos? HotkeyPos : Item.AutoHotkeyPos);
-			markup_slice_boundaries(
-				std::pair{ ItemTextBegin, ItemTextEnd },
-				std::views::single(std::pair{ HighlightPos, HighlightPos + 1 }),
-				HighlightMarkup);
-		}
-		else
-		{
-			HighlightMarkup.emplace_back(ItemTextEnd);
-		}
-
 		set_color(Colors, ColorIndices.Normal);
 		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
 
-		auto ItemTextPos{ ItemTextBegin };
+		auto ItemTextPos{ ItemTextSegment.first };
 
 		for (const auto SliceEnd : HighlightMarkup)
 		{
@@ -2880,62 +2897,62 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 		DrawDecorator(*Layout.RightHScroll, get_item_right_hscroll(Item.HorizontalPosition + ItemTextSize > TextAreaWidth, ColorIndices));
 }
 
-void VMenu::DrawRegularItemText(
-	const string_view ItemText,
-	const int HorizontalPosition,
-	const std::pair<short, short> CellArea,
-	const int Y,
-	const item_color_indicies& ColorIndices,
-	std::vector<int>& HighlightMarkup,
-	const string_view BlankLine) const
-{
-	auto CurColorIndex{ ColorIndices.Normal };
-	auto AltColorIndex{ ColorIndices.Highlighted };
-
-	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) };
-
-	const auto [ItemTextBegin, ItemTextEnd] { intersect({ 0, ItemTextSize }, { -Item.HorizontalPosition, TextAreaWidth - Item.HorizontalPosition }) };
-
-	if (ItemTextBegin < ItemTextEnd)
-	{
-		HighlightMarkup.clear();
-		if (!Item.Annotations.empty())
-		{
-			markup_slice_boundaries(
-				std::pair{ ItemTextBegin, ItemTextEnd },
-				Item.Annotations | std::views::transform([](const auto Ann) { return std::pair{ Ann.first, Ann.first + Ann.second }; }),
-				HighlightMarkup);
-		}
-		else if (HotkeyPos != string::npos || Item.AutoHotkey)
-		{
-			const auto HighlightPos = static_cast<int>(HotkeyPos != string::npos? HotkeyPos : Item.AutoHotkeyPos);
-			markup_slice_boundaries(
-				std::pair{ ItemTextBegin, ItemTextEnd },
-				std::views::single(std::pair{ HighlightPos, HighlightPos + 1 }),
-				HighlightMarkup);
-		}
-		else
-		{
-			HighlightMarkup.emplace_back(ItemTextEnd);
-		}
-
-		set_color(Colors, ColorIndices.Normal);
-		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
-
-		auto ItemTextPos{ ItemTextBegin };
-
-		for (const auto SliceEnd : HighlightMarkup)
-		{
-			set_color(Colors, CurColorIndex);
-			Text(string_view{ ItemTextToDisplay }.substr(ItemTextPos, SliceEnd - ItemTextPos));
-			std::ranges::swap(CurColorIndex, AltColorIndex);
-			ItemTextPos = SliceEnd;
-		}
-	}
-
-	set_color(Colors, ColorIndices.Normal);
-	Text(BlankLine.substr(0, TextAreaBegin + TextAreaWidth - WhereX()));
-}
+//void VMenu::DrawRegularItemText(
+//	const string_view ItemText,
+//	const int HorizontalPosition,
+//	const std::pair<short, short> CellArea,
+//	const int Y,
+//	const item_color_indicies& ColorIndices,
+//	std::vector<int>& HighlightMarkup,
+//	const string_view BlankLine) const
+//{
+//	auto CurColorIndex{ ColorIndices.Normal };
+//	auto AltColorIndex{ ColorIndices.Highlighted };
+//
+//	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) };
+//
+//	const auto [ItemTextBegin, ItemTextEnd] { intersect({ 0, ItemTextSize }, { -Item.HorizontalPosition, TextAreaWidth - Item.HorizontalPosition }) };
+//
+//	if (ItemTextBegin < ItemTextEnd)
+//	{
+//		HighlightMarkup.clear();
+//		if (!Item.Annotations.empty())
+//		{
+//			markup_slice_boundaries(
+//				std::pair{ ItemTextBegin, ItemTextEnd },
+//				Item.Annotations | std::views::transform([](const auto Ann) { return std::pair{ Ann.first, Ann.first + Ann.second }; }),
+//				HighlightMarkup);
+//		}
+//		else if (HotkeyPos != string::npos || Item.AutoHotkey)
+//		{
+//			const auto HighlightPos = static_cast<int>(HotkeyPos != string::npos? HotkeyPos : Item.AutoHotkeyPos);
+//			markup_slice_boundaries(
+//				std::pair{ ItemTextBegin, ItemTextEnd },
+//				std::views::single(std::pair{ HighlightPos, HighlightPos + 1 }),
+//				HighlightMarkup);
+//		}
+//		else
+//		{
+//			HighlightMarkup.emplace_back(ItemTextEnd);
+//		}
+//
+//		set_color(Colors, ColorIndices.Normal);
+//		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
+//
+//		auto ItemTextPos{ ItemTextBegin };
+//
+//		for (const auto SliceEnd : HighlightMarkup)
+//		{
+//			set_color(Colors, CurColorIndex);
+//			Text(string_view{ ItemTextToDisplay }.substr(ItemTextPos, SliceEnd - ItemTextPos));
+//			std::ranges::swap(CurColorIndex, AltColorIndex);
+//			ItemTextPos = SliceEnd;
+//		}
+//	}
+//
+//	set_color(Colors, ColorIndices.Normal);
+//	Text(BlankLine.substr(0, TextAreaBegin + TextAreaWidth - WhereX()));
+//}
 
 int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
 {
