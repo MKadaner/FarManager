@@ -99,23 +99,23 @@ struct menu_layout
 		, ClientRect{ get_client_rect(Menu, BoxType) }
 	{
 		auto Left{ Menu.m_Where.left };
-		if (need_box(BoxType))       LeftBox = Left++;
-		if (need_check_mark())       CheckMark = Left++;
+		if (need_box(BoxType)) LeftBox = Left++;
+		if (need_check_mark()) CheckMark = Left++;
 		if (need_left_column(Menu))
 		{
 			LeftColumnArea = { Left, Menu.m_LeftColumnWidth };
 			Left += Menu.m_LeftColumnWidth;
 			LeftColumnBorder = Left;
 		}
-		if (need_left_hscroll())     LeftHScroll = Left;
+		if (need_left_hscroll()) LeftHScroll = Left;
 		if (LeftColumnBorder || LeftHScroll) Left++;
 
 		auto Right{ Menu.m_Where.right };
-		if (need_box(BoxType))       RightBox = Right;
+		if (need_box(BoxType)) RightBox = Right;
 		if (need_scrollbar(Menu, BoxType)) Scrollbar = Right;
-		if (RightBox || Scrollbar)   Right--;
-		if (need_submenu(Menu))      SubMenu = Right--;
-		if (need_right_hscroll())    RightHScroll = Right--;
+		if (RightBox || Scrollbar) Right--;
+		if (need_submenu(Menu)) SubMenu = Right--;
+		if (need_right_hscroll()) RightHScroll = Right--;
 
 		if (Left <= Right)
 			TextArea = { Left, Right + 1 - Left };
@@ -2887,7 +2887,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	assert(!Layout.LeftColumnBorder || !Layout.LeftHScroll || *Layout.LeftColumnBorder == *Layout.LeftHScroll);
 	if (Layout.LeftColumnBorder || Layout.LeftHScroll)
 		DrawDecorator(
-			*Layout.LeftColumnBorder,
+		Layout.LeftHScroll.or_else([&] { return Layout.LeftColumnBorder; }).value(),
 			get_item_left_column_separator_or_left_hscroll(Layout.LeftColumnBorder.has_value(), Item.HorizontalPosition < 0, ColorIndices));
 
 	if (Layout.SubMenu)
