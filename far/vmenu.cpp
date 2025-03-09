@@ -2893,7 +2893,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 void VMenu::DrawRegularItemCell(
 	const string_view CellText,
 	const int HorizontalPosition,
-	const std::list<std::pair<int, int>> Annotations,
+	const std::list<std::pair<int, int>>& Annotations,
 	const std::optional<int> HotkeyPos,
 	const std::pair<short, short> CellArea,
 	const int Y,
