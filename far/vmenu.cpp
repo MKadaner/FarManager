@@ -2837,8 +2837,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	if (Layout.LeftColumnArea)
 	{
 		DrawRegularItemCell(
-			ItemTextToDisplay,
-			{ 0, m_LeftColumnWidth },
+			string_view{ ItemTextToDisplay }.substr(0, m_LeftColumnWidth),
 			0,
 			Item.Annotations,
 			HotkeyPos,
@@ -2854,8 +2853,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) - m_LeftColumnWidth };
 
 	DrawRegularItemCell(
-		ItemTextToDisplay,
-		{ m_LeftColumnWidth, ItemTextSize },
+		string_view{ ItemTextToDisplay }.substr(m_LeftColumnWidth, ItemTextSize),
 		Item.HorizontalPosition,
 		Item.Annotations,
 		HotkeyPos.and_then([this](const auto Pos) { return Pos >= m_LeftColumnWidth ? std::optional{ Pos - m_LeftColumnWidth } : std::nullopt; }),
@@ -2891,8 +2889,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 }
 
 void VMenu::DrawRegularItemCell(
-	const string& ItemText,
-	const std::pair<int, int> CellText,
+	const string_view CellText,
 	const int HorizontalPosition,
 	const std::list<std::pair<int, int>> Annotations,
 	const std::optional<int> HotkeyPos,
@@ -2902,11 +2899,9 @@ void VMenu::DrawRegularItemCell(
 	std::vector<int>& HighlightMarkup,
 	const string_view BlankLine) const
 {
-	const auto [CellTextBegin, CellTextWidth] { CellText };
 	const auto [CellAreaBegin, CellAreaWidth] { CellArea };
 
-	auto TextSegment{ intersect({ 0, CellTextWidth }, { -HorizontalPosition, CellAreaWidth - HorizontalPosition }) };
-	TextSegment = { TextSegment.first + CellTextBegin, TextSegment.second + CellTextBegin };
+	const auto TextSegment{ intersect({ 0, static_cast<int>(CellText.size()) }, {-HorizontalPosition, CellAreaWidth - HorizontalPosition})};
 
 	GotoXY(CellAreaBegin, Y);
 
@@ -2923,7 +2918,7 @@ void VMenu::DrawRegularItemCell(
 		for (const auto SliceEnd : HighlightMarkup)
 		{
 			set_color(Colors, CurColorIndex);
-			Text(ItemText.substr(CurTextPos, SliceEnd - CurTextPos));
+			Text(CellText.substr(CurTextPos, SliceEnd - CurTextPos));
 			std::ranges::swap(CurColorIndex, AltColorIndex);
 			CurTextPos = SliceEnd;
 		}

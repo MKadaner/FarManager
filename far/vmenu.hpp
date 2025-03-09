@@ -289,8 +289,7 @@ private:
 	void ApplySeparatorName(const MenuItemEx& Item, string& separator) const;
 	void DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, int Y, std::vector<int>& HighlightMarkup, string_view BlankLine) const;
 	void DrawRegularItemCell(
-		const string& ItemText,
-		std::pair<int, int> CellText,
+		string_view CellText,
 		int HorizontalPosition,
 		const std::list<std::pair<int, int>> Annotations,
 		std::optional<int> HotkeyPos,
