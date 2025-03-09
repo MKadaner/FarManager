@@ -562,9 +562,9 @@ namespace
 		return !(Item.Flags & (LIF_HIDDEN | LIF_FILTERED));
 	}
 
-	int get_item_visual_length(const bool ShowAmpersand, const string_view ItemName)
+	int get_item_visual_length(const bool ShowAmpersand, const string_view ItemName, int LeftColumnWidth)
 	{
-		return static_cast<int>(ShowAmpersand ? visual_string_length(ItemName) : HiStrlen(ItemName));
+		return static_cast<int>(ShowAmpersand ? visual_string_length(ItemName) : HiStrlen(ItemName)) - LeftColumnWidth;
 	}
 
 	std::pair<int, int> item_hpos_limits(const int ItemLength, const int TextAreaWidth, const item_hscroll_policy Policy) noexcept
@@ -955,7 +955,7 @@ int VMenu::AddItem(MenuItemEx&& NewItem,int PosAdd)
 	if (PosAdd <= SelectPos)
 		SelectPos++;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), NewMenuItem.Name) };
+	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), NewMenuItem.Name, m_LeftColumnWidth) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(NewMenuItem.HorizontalPosition, ItemLength, NewMenuItem.SafeGetFirstAnnotation());
 
@@ -974,7 +974,8 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 		return false;
 
 	auto& Item = Items[NewItem->Index];
-	m_HorizontalTracker->remove_item(Item.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name), Item.SafeGetFirstAnnotation());
+	m_HorizontalTracker->remove_item(
+		Item.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name, m_LeftColumnWidth), Item.SafeGetFirstAnnotation());
 
 	// Освободим память... от ранее занятого ;-)
 	if (NewItem->Item.Flags&LIF_DELETEUSERDATA)
@@ -987,7 +988,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 	UpdateItemFlags(NewItem->Index, NewItem->Item.Flags);
 	Item.SimpleUserData = NewItem->Item.UserData;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name) };
+	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name, m_LeftColumnWidth) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(Item.HorizontalPosition, ItemLength, Item.SafeGetFirstAnnotation());
 
@@ -1022,7 +1023,8 @@ int VMenu::DeleteItem(int ID, int Count)
 		if (!item_is_visible(I))
 			--ItemHiddenCount;
 
-		m_HorizontalTracker->remove_item(I.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), I.Name), I.SafeGetFirstAnnotation());
+		m_HorizontalTracker->remove_item(
+			I.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), I.Name, m_LeftColumnWidth), I.SafeGetFirstAnnotation());
 	}
 
 	// а вот теперь перемещения
@@ -2325,7 +2327,7 @@ bool VMenu::SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos)
 {
 	if (Item.Flags & LIF_SEPARATOR) return false;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name) - m_VisibleLeftColumnWidth };
+	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name, m_LeftColumnWidth) };
 	if (ItemLength <= 0) return false;
 
 	const auto NewHPos = [&]
@@ -3067,7 +3069,7 @@ void VMenu::UpdateMaxLengthFromTitles()
 
 void VMenu::UpdateMaxLength(int const ItemLength)
 {
-	m_MaxItemLength = std::max(m_MaxItemLength, ItemLength);
+	m_MaxItemLength = std::max(m_MaxItemLength, ItemLength + m_LeftColumnWidth);
 }
 
 void VMenu::SetMaxHeight(int NewMaxHeight)
