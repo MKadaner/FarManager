@@ -2325,7 +2325,7 @@ bool VMenu::SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos)
 {
 	if (Item.Flags & LIF_SEPARATOR) return false;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name) };
+	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name) - m_VisibleLeftColumnWidth };
 	if (ItemLength <= 0) return false;
 
 	const auto NewHPos = [&]
@@ -2338,7 +2338,7 @@ bool VMenu::SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos)
 			return GetNewHPos(Item.HorizontalPosition, ItemLength);
 	}();
 
-	m_HorizontalTracker->update_item_hpos(Item.HorizontalPosition , NewHPos, ItemLength, Item.SafeGetFirstAnnotation());
+	m_HorizontalTracker->update_item_hpos(Item.HorizontalPosition, NewHPos, ItemLength, Item.SafeGetFirstAnnotation());
 
 	if (Item.HorizontalPosition == NewHPos) return false;
 	Item.HorizontalPosition = NewHPos;
