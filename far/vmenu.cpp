@@ -71,6 +71,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common.hpp"
 #include "common/scope_exit.hpp"
 #include "common/uuid.hpp"
+#include "common/2d/algorithm.hpp"
 #include "common/view/enumerate.hpp"
 #include "common/view/zip.hpp"
 
@@ -86,7 +87,7 @@ struct menu_layout
 	std::optional<short> LeftBox;
 	std::optional<short> CheckMark;
 	std::optional<short> LeftHScroll;
-	std::optional<std::pair<short, short>> TextArea; // Begin, Width
+	std::optional<small_segment> TextArea;
 	std::optional<short> RightHScroll;
 	std::optional<short> SubMenu;
 	std::optional<short> Scrollbar;
@@ -109,7 +110,7 @@ struct menu_layout
 		if (need_right_hscroll())    RightHScroll = Right--;
 
 		if (Left <= Right)
-			TextArea = { Left, Right + 1 - Left };
+			TextArea = { Left, Right };
 	}
 
 	[[nodiscard]] static bool need_box(const VMenu& Menu) noexcept
@@ -191,7 +192,7 @@ enum class item_hscroll_policy
 
 // Keeps track of the horizontal state of all items.
 // The tracking is best effort. See comments below.
-// Everything is relative to menu_layout::TextArea::first (Left edge).
+// Everything is relative to menu_layout::TextArea::begin (Left edge).
 class vmenu_horizontal_tracker
 {
 	struct bulk_update_scope_guard
@@ -403,46 +404,27 @@ namespace
 				: FindPos(drop(Pos), take(Pos) | reverse));
 	}
 
-	std::pair<int, int> intersect(std::pair<int, int> A, std::pair<int, int> B)
+	void markup_slice_boundaries(segment Segment, std::ranges::input_range auto const& Slices, std::vector<int>& Markup)
 	{
-		assert(A.first <= A.second);
-		assert(B.first <= B.second);
-
-		if (A.first == A.second || B.first == B.second)
-			return {};
-
-		if (B.first < A.first)
-			std::ranges::swap(A, B);
-
-		if (A.second <= B.first)
-			return {};
-
-		return { B.first, std::min(A.second, B.second) };
-	}
-
-	void markup_slice_boundaries(std::pair<int, int> Segment, std::ranges::input_range auto const& Slices, std::vector<int>& Markup)
-	{
-		assert(Segment.first <= Segment.second);
-
 		for (const auto& Slice : Slices)
 		{
-			if (Slice.first >= Slice.second)
+			if (Slice.begin >= Slice.end)
 				continue;
 
 			const auto Intersection{ intersect(Segment, Slice) };
 
-			if (Intersection.first == Intersection.second)
+			if (Intersection.empty())
 				continue;
 
-			Markup.emplace_back(Intersection.first);
-			Markup.emplace_back(Intersection.second);
-			Segment.first = Intersection.second;
+			Markup.emplace_back(Intersection.begin);
+			Markup.emplace_back(Intersection.end);
+			Segment.begin = Intersection.end;
 
-			if (Segment.first == Segment.second)
+			if (Segment.empty())
 				return;
 		}
 
-		Markup.emplace_back(Segment.second);
+		Markup.emplace_back(Segment.end);
 	}
 
 	bool item_flags_allow_focus(unsigned long long const Flags)
@@ -2780,9 +2762,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 {
 	if (!Layout.TextArea) return;
 
-	const auto [TextAreaBegin, TextAreaWidth] { *Layout.TextArea };
-
-	GotoXY(TextAreaBegin, Y);
+	GotoXY(Layout.TextArea->begin, Y);
 
 	const item_color_indicies ColorIndices{ Item };
 	auto CurColorIndex{ ColorIndices.Normal };
@@ -2793,35 +2773,36 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	std::ranges::replace(ItemTextToDisplay, L'\t', L' ');
 	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) };
 
-	const auto [ItemTextBegin, ItemTextEnd] { intersect({ 0, ItemTextSize }, { -Item.HorizontalPosition, TextAreaWidth - Item.HorizontalPosition }) };
+	const auto ItemTextSegment {
+		intersect(segment{ 0, ItemTextSize }, segment{ -Item.HorizontalPosition, Layout.TextArea->width() - Item.HorizontalPosition}) };
 
-	if (ItemTextBegin < ItemTextEnd)
+	if (!ItemTextSegment.empty())
 	{
 		HighlightMarkup.clear();
 		if (!Item.Annotations.empty())
 		{
 			markup_slice_boundaries(
-				std::pair{ ItemTextBegin, ItemTextEnd },
-				Item.Annotations | std::views::transform([](const auto Ann) { return std::pair{ Ann.first, Ann.first + Ann.second }; }),
+				ItemTextSegment,
+				Item.Annotations,
 				HighlightMarkup);
 		}
 		else if (HotkeyPos != string::npos || Item.AutoHotkey)
 		{
 			const auto HighlightPos = static_cast<int>(HotkeyPos != string::npos? HotkeyPos : Item.AutoHotkeyPos);
 			markup_slice_boundaries(
-				std::pair{ ItemTextBegin, ItemTextEnd },
-				std::views::single(std::pair{ HighlightPos, HighlightPos + 1 }),
+				ItemTextSegment,
+				std::views::single(segment{ HighlightPos, HighlightPos + 1 }),
 				HighlightMarkup);
 		}
 		else
 		{
-			HighlightMarkup.emplace_back(ItemTextEnd);
+			HighlightMarkup.emplace_back(ItemTextSegment.end);
 		}
 
 		set_color(Colors, ColorIndices.Normal);
 		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
 
-		auto ItemTextPos{ ItemTextBegin };
+		auto ItemTextPos{ ItemTextSegment.begin };
 
 		for (const auto SliceEnd : HighlightMarkup)
 		{
@@ -2833,7 +2814,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	}
 
 	set_color(Colors, ColorIndices.Normal);
-	Text(BlankLine.substr(0, TextAreaBegin + TextAreaWidth - WhereX()));
+	Text(BlankLine.substr(0, Layout.TextArea->end - WhereX()));
 
 	const auto DrawDecorator = [&](const int X, std::tuple<color_indices, wchar_t> ColorAndChar)
 		{
@@ -2852,7 +2833,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 		DrawDecorator(*Layout.SubMenu, get_item_submenu(Item, ColorIndices));
 
 	if (Layout.RightHScroll)
-		DrawDecorator(*Layout.RightHScroll, get_item_right_hscroll(Item.HorizontalPosition + ItemTextSize > TextAreaWidth, ColorIndices));
+		DrawDecorator(*Layout.RightHScroll, get_item_right_hscroll(Item.HorizontalPosition + ItemTextSize > Layout.TextArea->width(), ColorIndices));
 }
 
 int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
@@ -3421,7 +3402,7 @@ void VMenu::EnableFilter(bool const Enable)
 int VMenu::CalculateTextAreaWidth() const
 {
 	const auto TextArea = menu_layout{ *this }.TextArea;
-	return TextArea? TextArea->second : 0;
+	return TextArea ? TextArea->width() : 0;
 }
 
 size_t VMenu::Text(string_view const Str) const
@@ -3496,43 +3477,12 @@ TEST_CASE("find.nearest.selectable.item")
 	}
 }
 
-TEST_CASE("intersect.segments")
-{
-	static constexpr struct test_data
-	{
-		std::pair<int, int> A, B, Intersection;
-	} TestDataPoints[] =
-	{
-		{ { 10, 20 }, { -1, 5 }, { 0, 0 } },
-		{ { 10, 20 }, { -1, 10 }, { 0, 0 } },
-		{ { 10, 20 }, { -1, 15 }, { 10, 15 } },
-		{ { 10, 20 }, { -1, 20 }, { 10, 20 } },
-		{ { 10, 20 }, { -1, 25 }, { 10, 20 } },
-		{ { 10, 20 }, { 10, 15 }, { 10, 15 } },
-		{ { 10, 20 }, { 10, 20 }, { 10, 20 } },
-		{ { 10, 20 }, { 10, 25 }, { 10, 20 } },
-		{ { 10, 20 }, { 15, 20 }, { 15, 20 } },
-		{ { 10, 20 }, { 15, 25 }, { 15, 20 } },
-		{ { 10, 20 }, { 20, 25 }, { 0, 0 } },
-		{ { 10, 20 }, { 25, 30 }, { 0, 0 } },
-		{ { 10, 20 }, { 0, 0 }, { 0, 0 } },
-		{ { 10, 20 }, { 15, 15 }, { 0, 0 } },
-		{ { 10, 20 }, { 30, 30 }, { 0, 0 } },
-	};
-
-	for (const auto& TestDataPoint : TestDataPoints)
-	{
-		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.A, TestDataPoint.B));
-		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.B, TestDataPoint.A));
-	}
-}
-
 TEST_CASE("markup.slice.boundaries")
 {
 	struct test_data
 	{
-		std::pair<int, int> Segment;
-		std::initializer_list<std::pair<int, int>> Slices;
+		segment Segment;
+		std::initializer_list<segment> Slices;
 		std::initializer_list<int> Markup;
 	};
 

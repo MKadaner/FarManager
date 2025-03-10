@@ -254,6 +254,7 @@ cl /nologo /c /Fo"$(IntDir)%(Filename)_c++.testobj" /TP api_test.c
     <ClInclude Include="common\2d\matrix.hpp" />
     <ClInclude Include="common\2d\point.hpp" />
     <ClInclude Include="common\2d\rectangle.hpp" />
+    <ClInclude Include="common\2d\segment.hpp" />
     <ClInclude Include="common\view\enumerate.hpp" />
     <ClInclude Include="common\view\zip.hpp" />
     <ClInclude Include="common\algorithm.hpp" />

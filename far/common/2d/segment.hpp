@@ -1,9 +1,9 @@
-﻿#ifndef ALGORITHM_HPP_6F8540EC_CCA6_4932_8DE1_D3BEDFF24453
-#define ALGORITHM_HPP_6F8540EC_CCA6_4932_8DE1_D3BEDFF24453
+﻿#ifndef SEGMENT_HPP_DC38F7F7_0E1B_486E_8368_2ACE6415D234
+#define SEGMENT_HPP_DC38F7F7_0E1B_486E_8368_2ACE6415D234
 #pragma once
 
 /*
-algorithm.hpp
+segment.hpp
 
 */
 /*
@@ -33,53 +33,61 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "rectangle.hpp"
-#include "segment.hpp"
-#include "../function_traits.hpp"
-
 //----------------------------------------------------------------------------
 
-template<class P>
-void for_submatrix(auto& Matrix, rectangle Rect, P Predicate)
+template<typename T>
+struct segment_width_t
 {
-	for (auto i = Rect.top; i <= Rect.bottom; ++i)
+	T width;
+
+	explicit operator T() const noexcept { return width; }
+};
+
+template<typename T>
+struct segment_t
+{
+	T begin;
+	T end; // One past last
+
+	segment_t() noexcept = default;
+
+	segment_t(T const Begin, T const End) noexcept
+		: begin{ Begin }
+		, end{ End }
 	{
-		for (auto j = Rect.left; j <= Rect.right; ++j)
-		{
-			if constexpr (function_traits<P>::arity == 2)
-				Predicate(Matrix[i][j], point{ j - Rect.left, i - Rect.top });
-			else
-				Predicate(Matrix[i][j]);
-		}
+		//assert(begin <= end); // Segment may be empty
 	}
-}
 
-template<typename T, size_t Width, size_t Height>
-static consteval auto column_major_iota()
-{
-	std::array<T, Width* Height> Result;
-	static_assert(Result.size() - 1 <= std::numeric_limits<T>::max());
+	segment_t(T const Begin, segment_width_t<T> const Width) noexcept
+		: segment_t{ Begin, static_cast<T>(Width) }
+	{
+	}
 
-	for (size_t Row = 0; Row != Height; ++Row)
-		for (size_t Col = 0; Col != Width; ++Col)
-			Result[Col + Row * Width] = static_cast<T>(Row + Col * Height);
+	template<typename Y>
+	explicit(false) segment_t(segment_t<Y> const Segment) noexcept:
+		segment_t(Segment.begin, Segment.end)
+	{
+	}
 
-	return Result;
-}
+	bool operator==(segment_t const&) const = default;
 
-template<typename TA, typename TB>
-segment_t<std::common_type_t<TA, TB>> intersect(segment_t<TA> const A, segment_t<TB> const B)
-{
-	if (A.empty() || B.empty())
-		return {};
+	[[nodiscard]]
+	auto width() const noexcept { assert(begin <= end); return end - begin; }
 
-	if (B.begin < A.begin)
-		return intersect(B, A);
+	[[nodiscard]]
+	auto empty() const noexcept { return !width(); }
 
-	if (A.end <= B.begin)
-		return {};
+	[[nodiscard]]
+	auto first() const noexcept { return begin; }
 
-	return { B.begin, std::min(A.end, B.end) };
-}
+	[[nodiscard]]
+	auto last() const noexcept { return end - 1; }
+};
 
-#endif // ALGORITHM_HPP_6F8540EC_CCA6_4932_8DE1_D3BEDFF24453
+using small_segment_width = segment_width_t<short>;
+using segment_width = segment_width_t<int>;
+
+using small_segment = segment_t<short>;
+using segment = segment_t<int>;
+
+#endif // SEGMENT_HPP_DC38F7F7_0E1B_486E_8368_2ACE6415D234

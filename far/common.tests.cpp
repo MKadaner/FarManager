@@ -220,6 +220,37 @@ TEST_CASE("2d.algorithm")
 	REQUIRE(Value == StartValue + 3 * 3);
 }
 
+TEST_CASE("intersect.segments")
+{
+	static const struct test_data
+	{
+		segment A, B, Intersection;
+	} TestDataPoints[] =
+	{
+		{ { 10, 20 }, { -1, 5 }, { 0, 0 } },
+		{ { 10, 20 }, { -1, 10 }, { 0, 0 } },
+		{ { 10, 20 }, { -1, 15 }, { 10, 15 } },
+		{ { 10, 20 }, { -1, 20 }, { 10, 20 } },
+		{ { 10, 20 }, { -1, 25 }, { 10, 20 } },
+		{ { 10, 20 }, { 10, 15 }, { 10, 15 } },
+		{ { 10, 20 }, { 10, 20 }, { 10, 20 } },
+		{ { 10, 20 }, { 10, 25 }, { 10, 20 } },
+		{ { 10, 20 }, { 15, 20 }, { 15, 20 } },
+		{ { 10, 20 }, { 15, 25 }, { 15, 20 } },
+		{ { 10, 20 }, { 20, 25 }, { 0, 0 } },
+		{ { 10, 20 }, { 25, 30 }, { 0, 0 } },
+		{ { 10, 20 }, { 0, 0 }, { 0, 0 } },
+		{ { 10, 20 }, { 15, 15 }, { 0, 0 } },
+		{ { 10, 20 }, { 30, 30 }, { 0, 0 } },
+	};
+
+	for (const auto& TestDataPoint : TestDataPoints)
+	{
+		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.A, TestDataPoint.B));
+		REQUIRE(TestDataPoint.Intersection == intersect(TestDataPoint.B, TestDataPoint.A));
+	}
+}
+
 //----------------------------------------------------------------------------
 
 #include "common/algorithm.hpp"
