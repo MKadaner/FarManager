@@ -292,9 +292,9 @@ private:
 	void DrawRegularItemCell(
 		string_view CellText,
 		int HorizontalPosition,
-		const std::list<std::pair<int, int>>& Annotations,
+		const std::list<segment>& Annotations,
 		std::optional<int> HotkeyPos,
-		std::pair<short, short> CellArea,
+		small_segment CellArea,
 		int Y,
 		const item_color_indicies& ColorIndices,
 		std::vector<int>& HighlightMarkup,

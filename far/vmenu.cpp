@@ -141,7 +141,7 @@ struct menu_layout
 	small_rectangle ClientRect{};
 	std::optional<short> LeftBox;
 	std::optional<short> CheckMark;
-	std::optional<std::pair<short, short>> LeftColumnArea; // Begin, Width
+	std::optional<small_segment> LeftColumnArea;
 	std::optional<short> LeftColumnBorder;
 	std::optional<short> LeftHScroll;
 	std::optional<small_segment> TextArea;
@@ -159,7 +159,7 @@ struct menu_layout
 		if (need_check_mark()) CheckMark = Left++;
 		if (need_left_column(Menu))
 		{
-			LeftColumnArea = { Left, Menu.m_LeftColumnWidth };
+			LeftColumnArea = { Left, small_segment::length_tag{ static_cast<short>(Menu.m_LeftColumnWidth) } };
 			Left += Menu.m_LeftColumnWidth;
 			LeftColumnBorder = Left;
 		}
@@ -491,12 +491,12 @@ namespace
 	}
 
 	bool markup_slice_boundaries(
-		std::pair<int, int> TextSegment,
-		const std::list<std::pair<int, int>>& Annotations,
+		segment TextSegment,
+		const std::list<segment>& Annotations,
 		const std::optional<int> HotkeyPos,
 		std::vector<int>& HighlightMarkup)
 	{
-		if (TextSegment.first >= TextSegment.second) return false;
+		if (TextSegment.empty()) return false;
 
 		HighlightMarkup.clear();
 
@@ -504,7 +504,7 @@ namespace
 		{
 			markup_slice_boundaries(
 				TextSegment,
-				Annotations | std::views::transform([](const auto Ann) { return std::pair{ Ann.first, Ann.first + Ann.second }; }),
+				Annotations,
 				HighlightMarkup);
 			return true;
 		}
@@ -513,12 +513,12 @@ namespace
 		{
 			markup_slice_boundaries(
 				TextSegment,
-				std::views::single(std::pair{ *HotkeyPos, *HotkeyPos + 1 }),
+				std::views::single(segment{ *HotkeyPos, segment::length_tag{ 1 } }),
 				HighlightMarkup);
 			return true;
 		}
 
-		HighlightMarkup.emplace_back(TextSegment.second);
+		HighlightMarkup.emplace_back(TextSegment.end());
 		return true;
 	}
 
@@ -2821,8 +2821,8 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 		DrawRegularItemCell(
 			string_view{ ItemTextToDisplay }.substr(0, m_LeftColumnWidth),
 			0,
-			Item.Annotations,
-			HotkeyPos,
+			{},
+			std::nullopt,
 			*Layout.LeftColumnArea,
 			Y,
 			ColorIndices,
@@ -2867,25 +2867,24 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	//const auto [TextAreaBegin, TextAreaWidth] { *Layout.TextArea };
 
 	if (Layout.RightHScroll)
-		DrawDecorator(*Layout.RightHScroll, get_item_right_hscroll(Item.HorizontalPosition + ItemTextSize > Layout.TextArea->second, ColorIndices));
+		DrawDecorator(*Layout.RightHScroll, get_item_right_hscroll(Item.HorizontalPosition + ItemTextSize > Layout.TextArea->length(), ColorIndices));
 }
 
 void VMenu::DrawRegularItemCell(
 	const string_view CellText,
 	const int HorizontalPosition,
-	const std::list<std::pair<int, int>>& Annotations,
+	const std::list<segment>& Annotations,
 	const std::optional<int> HotkeyPos,
-	const std::pair<short, short> CellArea,
+	const small_segment CellArea,
 	const int Y,
 	const item_color_indicies& ColorIndices,
 	std::vector<int>& HighlightMarkup,
 	const string_view BlankLine) const
 {
-	const auto [CellAreaBegin, CellAreaWidth] { CellArea };
+	const auto TextSegment{
+		intersect(segment{ 0, segment::length_tag{ static_cast<int>(CellText.size()) } }, segment{ -HorizontalPosition, segment::length_tag{ CellArea.length() }})};
 
-	const auto TextSegment{ intersect({ 0, static_cast<int>(CellText.size()) }, {-HorizontalPosition, CellAreaWidth - HorizontalPosition})};
-
-	GotoXY(CellAreaBegin, Y);
+	GotoXY(CellArea.start(), Y);
 
 	if (markup_slice_boundaries(TextSegment, Annotations, HotkeyPos, HighlightMarkup))
 	{
@@ -2894,7 +2893,7 @@ void VMenu::DrawRegularItemCell(
 
 		auto CurColorIndex{ ColorIndices.Normal };
 		auto AltColorIndex{ ColorIndices.Highlighted };
-		auto CurTextPos{ TextSegment.first };
+		auto CurTextPos{ TextSegment.start() };
 		//auto ItemTextPos{ std::max(-HorizontalPosition, 0) };
 
 		for (const auto SliceEnd : HighlightMarkup)
@@ -2907,7 +2906,7 @@ void VMenu::DrawRegularItemCell(
 	}
 
 	set_color(Colors, ColorIndices.Normal);
-	Text(BlankLine.substr(0, CellAreaBegin + CellAreaWidth - WhereX()));
+	Text(BlankLine.substr(0, CellArea.end() - WhereX()));
 }
 
 int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
