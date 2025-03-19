@@ -70,7 +70,7 @@ public:
 	void SetBottomTitle(const string& Title);
 	void SetBoxType(int BoxType);
 	void SetMenuFlags(DWORD Flags);
-	void SetFixedLeftColumn(int LeftColumnWidth, int VisibleLeftColumnWidth);
+	void SetFixedLeftColumn(std::vector<vmenu_fixed_column_t>&& FixedColumns);
 	void AssignHighlights(bool Reverse = false);
 	void clear();
 	int DeleteItem(int ID,int Count=1);
