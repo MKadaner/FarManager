@@ -155,6 +155,13 @@ struct item_color_indicies;
 struct menu_layout;
 class vmenu_horizontal_tracker;
 
+struct vmenu_fixed_column_t
+{
+	small_segment TextSegment;
+	unsigned short CurrentWidth;
+	wchar_t Separator;
+};
+
 struct SortItemParam
 {
 	bool Reverse;
@@ -192,7 +199,7 @@ public:
 	void SetDialogStyle(bool Style) { ChangeFlags(VMENU_WARNDIALOG, Style); SetColors(nullptr); }
 	void SetUpdateRequired(bool SetUpdate) { ChangeFlags(VMENU_UPDATEREQUIRED, SetUpdate); }
 	void SetMenuFlags(DWORD Flags) { VMFlags.Set(Flags); }
-	void SetFixedLeftColumn(int LeftColumnWidth, int VisibleLeftColumnWidth);
+	void SetFixedLeftColumn(std::vector<vmenu_fixed_column_t>&& FixedColumns);
 	void ClearFlags(DWORD Flags) { VMFlags.Clear(Flags); }
 	bool CheckFlags(DWORD Flags) const { return VMFlags.Check(Flags); }
 	DWORD GetFlags() const { return VMFlags.Flags(); }
@@ -334,10 +341,7 @@ private:
 	bool WasAutoHeight{};
 	int m_MaxItemLength{};
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
-	// The width of the fixed vertical column at the left side of each item. If zero, there is no fixed vertical column.
-	int m_LeftColumnWidth{};
-	// Current visible width of the fixed vertical column. If m_LeftColumnWidth > 0, the value is in the range [0, m_LeftColumnWidth].
-	int m_VisibleLeftColumnWidth{};
+	std::vector<vmenu_fixed_column_t> m_FixedColumns;
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};

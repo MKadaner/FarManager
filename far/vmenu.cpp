@@ -141,8 +141,7 @@ struct menu_layout
 	small_rectangle ClientRect{};
 	std::optional<short> LeftBox;
 	std::optional<short> CheckMark;
-	std::optional<small_segment> LeftColumnArea;
-	std::optional<short> LeftColumnBorder;
+	std::optional<small_segment> FixedColumnsArea;
 	std::optional<short> LeftHScroll;
 	std::optional<small_segment> TextArea;
 	std::optional<short> RightHScroll;
@@ -157,14 +156,12 @@ struct menu_layout
 		auto Left{ Menu.m_Where.left };
 		if (need_box(BoxType)) LeftBox = Left++;
 		if (need_check_mark()) CheckMark = Left++;
-		if (need_left_column(Menu))
+		if (const auto FixedColumnsWidth{ fixed_columns_width(Menu) })
 		{
-			LeftColumnArea = { Left, small_segment::length_tag{ static_cast<short>(Menu.m_LeftColumnWidth) } };
-			Left += Menu.m_LeftColumnWidth;
-			LeftColumnBorder = Left;
+			FixedColumnsArea = { Left, small_segment::length_tag{ FixedColumnsWidth } };
+			Left += FixedColumnsWidth;
 		}
-		if (need_left_hscroll()) LeftHScroll = Left;
-		if (LeftColumnBorder || LeftHScroll) Left++;
+		if (need_left_hscroll()) LeftHScroll = Left++;
 
 		auto Right{ Menu.m_Where.right };
 		if (need_box(BoxType)) RightBox = Right;
@@ -212,7 +209,8 @@ struct menu_layout
 
 		return NeedBox
 			+ need_check_mark()
-			+ (need_left_column(Menu) || need_left_hscroll())
+			+ fixed_columns_width(Menu)
+			+ need_left_hscroll()
 			+ need_right_hscroll()
 			+ need_submenu(Menu)
 			+ (NeedBox || need_scrollbar(Menu, BoxType));
@@ -230,7 +228,15 @@ private:
 	[[nodiscard]] static bool need_box(short BoxType) noexcept { return BoxType != NO_BOX; }
 	[[nodiscard]] static bool need_check_mark() noexcept { return true; }
 	[[nodiscard]] static bool need_left_hscroll() noexcept { return true; }
-	[[nodiscard]] static bool need_left_column(const VMenu& Menu) noexcept { return Menu.m_LeftColumnWidth > 0; }
+	[[nodiscard]] static unsigned short fixed_columns_width(const VMenu& Menu) noexcept
+	{
+		const auto width{ std::ranges::fold_left_first(
+			Menu.m_FixedColumns | std::views::transform([](const auto& column) { return column.CurrentWidth + !!column.CurrentWidth; }), std::plus{})
+			.value_or(0)
+		};
+		assert(std::in_range<unsigned short>(width));
+		return static_cast<unsigned short>(width);
+	}
 	[[nodiscard]] static bool need_right_hscroll() noexcept { return true; }
 	[[nodiscard]] static bool need_submenu(const VMenu& Menu) noexcept { return Menu.ItemSubMenusCount > 0; }
 	[[nodiscard]] static bool need_scrollbar(const VMenu& Menu, short const BoxType)
@@ -3088,11 +3094,13 @@ void VMenu::SetTitle(string_view const Title)
 	UpdateMaxLength(static_cast<int>(strTitle.size() + 2));
 }
 
-void VMenu::SetFixedLeftColumn(int const LeftColumnWidth, int const VisibleLeftColumnWidth)
+void VMenu::SetFixedLeftColumn(std::vector<vmenu_fixed_column_t>&& FixedColumns)
 {
-	assert(LeftColumnWidth >= 0);
-	m_LeftColumnWidth = LeftColumnWidth;
-	m_VisibleLeftColumnWidth = std::clamp(VisibleLeftColumnWidth >= 0 ? VisibleLeftColumnWidth : m_VisibleLeftColumnWidth, 0, m_LeftColumnWidth);
+	m_FixedColumns = std::move(FixedColumns);
+	for (auto& column : FixedColumns)
+	{
+		column.CurrentWidth = std::min(column.CurrentWidth, column.TextSegment.length());
+	}
 }
 
 void VMenu::ResizeConsole()

@@ -38,9 +38,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 template<typename T>
 class segment_t
 {
+	using length_t = std::make_unsigned_t<T>;
+
 public:
 	struct sentinel_tag { T m_end{}; };
-	struct length_tag { T m_length{}; };
+	struct length_tag { length_t m_length{}; };
 
 	segment_t() noexcept = default;
 
@@ -58,17 +60,17 @@ public:
 	{}
 
 	[[nodiscard]]
-	auto length() const noexcept { assert(m_Start <= m_End); return m_End - m_Start; }
+	length_t length() const noexcept { assert(m_Start <= m_End); return m_End - m_Start; }
 
 	[[nodiscard]]
-	auto empty() const noexcept { return !length(); }
+	bool empty() const noexcept { return !length(); }
 
 	// Not begin to avoid accidental misuse of std::begin(MySegment)
 	[[nodiscard]]
-	auto start() const noexcept { assert(!empty()); return m_Start; }
+	T start() const noexcept { assert(!empty()); return m_Start; }
 
 	[[nodiscard]]
-	auto end() const noexcept { assert(!empty()); return m_End; }
+	T end() const noexcept { assert(!empty()); return m_End; }
 
 	bool operator==(segment_t const& Other) const noexcept
 	{
@@ -80,9 +82,7 @@ private:
 	segment_t(T const Start, T const End) noexcept
 		: m_Start{ Start }
 		, m_End{ End }
-	{
-		assert(length() >= 0);
-	}
+	{}
 
 	T m_Start{};
 	T m_End{}; // One past last
