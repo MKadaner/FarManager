@@ -227,7 +227,6 @@ private:
 
 	[[nodiscard]] static bool need_box(short BoxType) noexcept { return BoxType != NO_BOX; }
 	[[nodiscard]] static bool need_check_mark() noexcept { return true; }
-	[[nodiscard]] static bool need_left_hscroll() noexcept { return true; }
 	[[nodiscard]] static unsigned short fixed_columns_width(const VMenu& Menu) noexcept
 	{
 		const auto width{ std::ranges::fold_left_first(
@@ -237,6 +236,7 @@ private:
 		assert(std::in_range<unsigned short>(width));
 		return static_cast<unsigned short>(width);
 	}
+	[[nodiscard]] static bool need_left_hscroll() noexcept { return true; }
 	[[nodiscard]] static bool need_right_hscroll() noexcept { return true; }
 	[[nodiscard]] static bool need_submenu(const VMenu& Menu) noexcept { return Menu.ItemSubMenusCount > 0; }
 	[[nodiscard]] static bool need_scrollbar(const VMenu& Menu, short const BoxType)
@@ -548,9 +548,9 @@ namespace
 		return !(Item.Flags & (LIF_HIDDEN | LIF_FILTERED));
 	}
 
-	int get_item_visual_length(const bool ShowAmpersand, const string_view ItemName, int LeftColumnWidth)
+	int get_item_visual_length(const bool ShowAmpersand, const string_view ItemName)
 	{
-		return static_cast<int>(ShowAmpersand ? visual_string_length(ItemName) : HiStrlen(ItemName)) - LeftColumnWidth;
+		return static_cast<int>(ShowAmpersand ? visual_string_length(ItemName) : HiStrlen(ItemName));
 	}
 
 	std::pair<int, int> item_hpos_limits(const int ItemLength, const int TextAreaWidth, const item_hscroll_policy Policy) noexcept
@@ -941,7 +941,7 @@ int VMenu::AddItem(MenuItemEx&& NewItem,int PosAdd)
 	if (PosAdd <= SelectPos)
 		SelectPos++;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), NewMenuItem.Name, m_LeftColumnWidth) };
+	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), NewMenuItem.Name) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(NewMenuItem.HorizontalPosition, ItemLength, NewMenuItem.SafeGetFirstAnnotation());
 
@@ -961,7 +961,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 
 	auto& Item = Items[NewItem->Index];
 	m_HorizontalTracker->remove_item(
-		Item.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name, m_LeftColumnWidth), Item.SafeGetFirstAnnotation());
+		Item.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name), Item.SafeGetFirstAnnotation());
 
 	// Освободим память... от ранее занятого ;-)
 	if (NewItem->Item.Flags&LIF_DELETEUSERDATA)
@@ -974,7 +974,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 	UpdateItemFlags(NewItem->Index, NewItem->Item.Flags);
 	Item.SimpleUserData = NewItem->Item.UserData;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name, m_LeftColumnWidth) };
+	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(Item.HorizontalPosition, ItemLength, Item.SafeGetFirstAnnotation());
 
@@ -1010,7 +1010,7 @@ int VMenu::DeleteItem(int ID, int Count)
 			--ItemHiddenCount;
 
 		m_HorizontalTracker->remove_item(
-			I.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), I.Name, m_LeftColumnWidth), I.SafeGetFirstAnnotation());
+			I.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), I.Name), I.SafeGetFirstAnnotation());
 	}
 
 	// а вот теперь перемещения
@@ -2822,34 +2822,14 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 			? std::optional{ static_cast<int>(UserHotkeyPos) }
 			: Item.AutoHotkey ? std::optional{ static_cast<int>(Item.AutoHotkeyPos) } : std::nullopt };
 
-	if (Layout.LeftColumnArea)
-	{
-		DrawRegularItemCell(
-			string_view{ ItemTextToDisplay }.substr(0, m_LeftColumnWidth),
-			0,
-			{},
-			std::nullopt,
-			*Layout.LeftColumnArea,
-			Y,
-			ColorIndices,
-			HighlightMarkup,
-			BlankLine);
-	}
-
-	if (!Layout.TextArea) return;
-
-	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) - m_LeftColumnWidth };
-
-	DrawRegularItemCell(
-		string_view{ ItemTextToDisplay }.substr(m_LeftColumnWidth, ItemTextSize),
-		Item.HorizontalPosition,
-		Item.Annotations,
-		HotkeyPos.and_then([this](const auto Pos) { return Pos >= m_LeftColumnWidth ? std::optional{ Pos - m_LeftColumnWidth } : std::nullopt; }),
-		*Layout.TextArea,
-		Y,
-		ColorIndices,
-		HighlightMarkup,
-		BlankLine);
+	const auto GetCellText{
+		[&](small_segment TextSegment) -> std::optional<string_view>
+		{
+			const auto Intersection{ intersect(segment{ 0, segment::length_tag{ static_cast<unsigned>(ItemTextToDisplay.size()) } }, TextSegment) };
+			if (Intersection.empty()) return std::nullopt;
+			return string_view{ ItemTextToDisplay }.substr(Intersection.start(), Intersection.length());
+		}
+	};
 
 	const auto DrawDecorator = [&](const int X, std::tuple<vmenu_color_index, wchar_t> ColorAndChar)
 		{
@@ -2857,6 +2837,47 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 			set_color(Colors, std::get<vmenu_color_index>(ColorAndChar));
 			Text(std::get<wchar_t>(ColorAndChar));
 		};
+
+	if (Layout.FixedColumnsArea)
+	{
+		auto CurFixedColumnStart{ Layout.FixedColumnsArea->start() };
+		for (const auto CurFixedColumn : m_FixedColumns)
+		{
+			if (CurFixedColumn.CurrentWidth)
+				continue;
+
+			DrawRegularItemCell(
+				string_view{ ItemTextToDisplay }.substr(CurFixedColumn.TextSegment.start(), CurFixedColumn.TextSegment.length()),
+				0,
+				{},
+				std::nullopt,
+				{ CurFixedColumnStart, small_segment::length_tag{ CurFixedColumn.CurrentWidth } },
+				Y,
+				ColorIndices,
+				HighlightMarkup,
+				BlankLine);
+			CurFixedColumnStart += CurFixedColumn.CurrentWidth;
+
+			DrawDecorator(CurFixedColumnStart, { ColorIndices.Normal, CurFixedColumn.Separator });
+			CurFixedColumnStart++;
+		}
+	}
+
+	const auto ItemTextSize{ static_cast<int>(ItemTextToDisplay.size()) - m_LeftColumnWidth };
+
+	if (Layout.TextArea)
+	{
+		DrawRegularItemCell(
+			string_view{ ItemTextToDisplay }.substr(Layout.FixedColumnsArea->end()),
+			Item.HorizontalPosition,
+			Item.Annotations,
+			HotkeyPos.and_then([this](const auto Pos) { return Pos >= m_LeftColumnWidth ? std::optional{ Pos - m_LeftColumnWidth } : std::nullopt; }),
+			*Layout.TextArea,
+			Y,
+			ColorIndices,
+			HighlightMarkup,
+			BlankLine);
+	}
 
 	if (Layout.CheckMark)
 		DrawDecorator(*Layout.CheckMark, get_item_check_mark(Item, ColorIndices));
