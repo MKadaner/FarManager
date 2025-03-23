@@ -38,25 +38,23 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 template<typename T>
 class segment_t
 {
-	using length_t = std::make_unsigned_t<T>;
-
 public:
-	using domain_t = T;
+	struct sentinel_tag { T m_End{}; };
+	struct length_tag { T m_Length{}; };
 
-	struct sentinel_tag { T m_end{}; };
-	struct length_tag { length_t m_length{}; };
+	static constexpr auto DomainMin{ std::numeric_limits<T>::min() };
+	static constexpr auto DomainMax{ std::numeric_limits<T>::max() };
 
-	static constexpr domain_min{ std::numeric_limits<domain_t>::min() };
-	static constexpr domain_max{ std::numeric_limits<domain_t>::max() };
+	static constexpr segment_t HalfSpace{ T{}, sentinel_tag{ DomainMax } };
 
 	segment_t() noexcept = default;
 
 	segment_t(T const Start, sentinel_tag const End) noexcept
-		: segment_t{ Start, End.m_end }
+		: segment_t{ Start, End.m_End }
 	{}
 
 	segment_t(T const Start, length_tag const Length) noexcept
-		: segment_t{ Start, safe_end(Start, Length) }
+		: segment_t{ Start, static_cast<T>(Start + Length.m_length) }
 	{}
 
 	template<typename Y>
@@ -65,7 +63,7 @@ public:
 	{}
 
 	[[nodiscard]]
-	length_t length() const noexcept { return m_End - m_Start; }
+	T length() const noexcept { return m_End - m_Start; }
 
 	[[nodiscard]]
 	bool empty() const noexcept { return !length(); }
@@ -89,12 +87,7 @@ private:
 		, m_End{ End }
 	{
 		assert(m_Start <= m_End);
-	}
-
-	static T safe_end(T const Start, length_tag const Length) noexcept
-	{
-		const auto UnsafeEnd{ static_cast<T>(Start + Length.m_length) };
-		return UnsafeEnd >= Start ? UnsafeEnd : domain_max;
+		assert(length() >= 0);
 	}
 
 	T m_Start{};
