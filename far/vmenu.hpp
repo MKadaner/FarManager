@@ -322,7 +322,6 @@ private:
 	[[nodiscard]] bool ShiftAllItemsHPos(int Shift);
 	[[nodiscard]] bool AlignAnnotations();
 
-	void UpdateMaxLengthFromTitles();
 	void UpdateMaxLength(int ItemLength);
 	bool ShouldSendKeyToFilter(unsigned Key) const;
 	//корректировка текущей позиции и флагов SELECTED
@@ -339,10 +338,10 @@ private:
 	int TopPos{};
 	int MaxHeight;
 	bool WasAutoHeight{};
-	int m_MaxItemLength{};
+	int m_MaxItemLength{}; // Intersected with m_ItemTextSegment
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
 	std::vector<vmenu_fixed_column_t> m_FixedColumns;
-	small_segment m_ItemTextSegment{ 0, small_segment::domain_max };
+	small_segment m_ItemTextSegment{ small_segment::HalfSpace } };
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};

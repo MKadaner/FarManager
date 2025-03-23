@@ -216,12 +216,10 @@ struct menu_layout
 			+ (NeedBox || need_scrollbar(Menu, BoxType));
 	}
 
-	[[nodiscard]] static int get_title_service_area_size(const short BoxType)
+	[[nodiscard]] static int get_title_service_area_size(const bool NeedBox)
 	{
 		// ╚═ Ctrl+Enter F5 Gray + Ctrl+Up Ctrl+Down ══╝
 		// ?^^                                      ^ ^?
-
-		const auto NeedBox = need_box(BoxType);
 		return NeedBox + 1 + 1 + 1 + 1 + NeedBox;
 	}
 
@@ -236,14 +234,14 @@ private:
 
 	[[nodiscard]] static bool need_box(short BoxType) noexcept { return BoxType != NO_BOX; }
 	[[nodiscard]] static bool need_check_mark() noexcept { return true; }
-	[[nodiscard]] static unsigned short fixed_columns_width(const VMenu& Menu) noexcept
+	[[nodiscard]] static short fixed_columns_width(const VMenu& Menu) noexcept
 	{
 		const auto width{ std::ranges::fold_left_first(
 			Menu.m_FixedColumns | std::views::transform([](const auto& column) { return column.CurrentWidth + !!column.CurrentWidth; }), std::plus{})
 			.value_or(0)
 		};
-		assert(std::in_range<unsigned short>(width));
-		return static_cast<unsigned short>(width);
+		assert(std::in_range<short>(width));
+		return static_cast<short>(width);
 	}
 	[[nodiscard]] static bool need_left_hscroll() noexcept { return true; }
 	[[nodiscard]] static bool need_right_hscroll() noexcept { return true; }
@@ -697,9 +695,6 @@ void VMenu::init(std::span<menu_item const> const Data, DWORD Flags)
 	GetCursorType(PrevCursorVisible,PrevCursorSize);
 	bRightBtnPressed = false;
 
-	// инициализируем перед добавлением элемента
-	UpdateMaxLengthFromTitles();
-
 	for (const auto& i: Data)
 	{
 		MenuItemEx NewItem;
@@ -953,7 +948,7 @@ int VMenu::AddItem(MenuItemEx&& NewItem,int PosAdd)
 	if (PosAdd <= SelectPos)
 		SelectPos++;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), NewMenuItem.Name) };
+	const auto ItemLength{ get_item_cell_visual_length(NewMenuItem.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(NewMenuItem.HorizontalPosition, ItemLength, NewMenuItem.SafeGetFirstAnnotation());
 
@@ -973,7 +968,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 
 	auto& Item = Items[NewItem->Index];
 	m_HorizontalTracker->remove_item(
-		Item.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name), Item.SafeGetFirstAnnotation());
+		Item.HorizontalPosition, get_item_cell_visual_length(Item.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)), Item.SafeGetFirstAnnotation());
 
 	// Освободим память... от ранее занятого ;-)
 	if (NewItem->Item.Flags&LIF_DELETEUSERDATA)
@@ -986,7 +981,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 	UpdateItemFlags(NewItem->Index, NewItem->Item.Flags);
 	Item.SimpleUserData = NewItem->Item.UserData;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name) };
+	const auto ItemLength{ get_item_cell_visual_length(Item.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(Item.HorizontalPosition, ItemLength, Item.SafeGetFirstAnnotation());
 
@@ -1022,7 +1017,7 @@ int VMenu::DeleteItem(int ID, int Count)
 			--ItemHiddenCount;
 
 		m_HorizontalTracker->remove_item(
-			I.HorizontalPosition, get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), I.Name), I.SafeGetFirstAnnotation());
+			I.HorizontalPosition, get_item_cell_visual_length(I.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)), I.SafeGetFirstAnnotation());
 	}
 
 	// а вот теперь перемещения
@@ -1063,8 +1058,9 @@ void VMenu::clear()
 	SelectPos=-1;
 	TopPos=0;
 	m_MaxItemLength = 0;
-	UpdateMaxLengthFromTitles();
 	m_HorizontalTracker->clear();
+	m_FixedColumns.clear();
+	m_ItemTextSegment = small_segment::HalfSpace;
 
 	SetMenuFlags(VMENU_UPDATEREQUIRED);
 }
@@ -3060,15 +3056,11 @@ bool VMenu::CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos,
 	return Done();
 }
 
-void VMenu::UpdateMaxLengthFromTitles()
-{
-	//тайтл + 2 пробела вокруг
-	UpdateMaxLength(static_cast<int>(std::max(strTitle.size(), strBottomTitle.size()) + 2));
-}
-
 void VMenu::UpdateMaxLength(int const ItemLength)
 {
-	m_MaxItemLength = std::max(m_MaxItemLength, ItemLength + m_LeftColumnWidth);
+	m_MaxItemLength = std::max(
+		m_MaxItemLength,
+		intersect(segment{ 0, segment::length_tag{ ItemLength } }, m_ItemTextSegment).length());
 }
 
 void VMenu::SetMaxHeight(int NewMaxHeight)
@@ -3093,19 +3085,13 @@ string &VMenu::GetBottomTitle(string &strDest) const
 void VMenu::SetBottomTitle(string_view const BottomTitle)
 {
 	SetMenuFlags(VMENU_UPDATEREQUIRED);
-
 	strBottomTitle = BottomTitle;
-
-	UpdateMaxLength(static_cast<int>(strBottomTitle.size() + 2));
 }
 
 void VMenu::SetTitle(string_view const Title)
 {
 	SetMenuFlags(VMENU_UPDATEREQUIRED);
-
 	strTitle = Title;
-
-	UpdateMaxLength(static_cast<int>(strTitle.size() + 2));
 }
 
 void VMenu::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment)
@@ -3484,8 +3470,11 @@ std::vector<string> VMenu::AddHotkeys(std::span<menu_item> const MenuItems)
 
 int VMenu::GetNaturalMenuWidth() const
 {
-	// TBD: Account for titles!
-	return m_MaxItemLength + menu_layout::get_service_area_size(*this);
+	const auto NeedBox = menu_layout::need_box(*this);
+	return std::max(
+		m_MaxItemLength + menu_layout::get_service_area_size(*this, NeedBox),
+		static_cast<int>(std::max(strTitle.size(), strBottomTitle.size()) + menu_layout::get_title_service_area_size(NeedBox))
+	);
 }
 
 void VMenu::EnableFilter(bool const Enable)

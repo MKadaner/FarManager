@@ -123,8 +123,8 @@ constexpr bool none_of(auto const&... Args)
 	return !any_of(Args...);
 }
 
-template<typename TA, typename TB>
-segment_t<std::common_type_t<TA, TB>> intersect(segment_t<TA> const A, segment_t<TB> const B)
+template<typename TA, typename TB, typename TC = std::common_type_t<TA, TB>>
+segment_t<TC> intersect(segment_t<TA> const A, segment_t<TB> const B)
 {
 	if (A.empty() || B.empty())
 		return {};
@@ -135,7 +135,7 @@ segment_t<std::common_type_t<TA, TB>> intersect(segment_t<TA> const A, segment_t
 	if (A.end() <= B.start())
 		return {};
 
-	return { B.start(), segment::sentinel_tag{ std::min(A.end(), B.end()) } };
+	return { B.start(), segment_t<TC>::sentinel_tag{ std::min(static_cast<TC>(A.end()), static_cast<TC>(B.end())) } };
 }
 
 #endif // ALGORITHM_HPP_BBD588C0_4752_46B2_AAB9_65450622FFF0
