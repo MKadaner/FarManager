@@ -418,9 +418,9 @@ void VMenu2::SetMenuFlags(DWORD Flags)
 	SendMessage(DM_SETDLGITEMSHORT, 0, &fdi);
 }
 
-void VMenu2::SetFixedLeftColumn(std::vector<vmenu_fixed_column_t>&& FixedColumns)
+void VMenu2::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, const small_segment ItemTextSegment)
 {
-	ListBox().SetFixedLeftColumn(std::move(FixedColumns));
+	ListBox().SetFixedColumns(std::move(FixedColumns), ItemTextSegment);
 }
 
 void VMenu2::AssignHighlights(bool Reverse)

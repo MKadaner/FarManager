@@ -158,7 +158,7 @@ class vmenu_horizontal_tracker;
 struct vmenu_fixed_column_t
 {
 	small_segment TextSegment;
-	unsigned short CurrentWidth;
+	short CurrentWidth;
 	wchar_t Separator;
 };
 
@@ -308,6 +308,7 @@ private:
 		string_view BlankLine) const;
 
 	[[nodiscard]] int CalculateTextAreaWidth() const;
+	[[nodiscard]] int GetItemVisualLength(string_view ItemName) const; // Intersected with m_ItemTextSegment
 
 	int GetItemPosition(int Position) const;
 	bool CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos, int& NewPos);
@@ -341,7 +342,7 @@ private:
 	int m_MaxItemLength{}; // Intersected with m_ItemTextSegment
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
 	std::vector<vmenu_fixed_column_t> m_FixedColumns;
-	small_segment m_ItemTextSegment{ small_segment::HalfSpace } };
+	small_segment m_ItemTextSegment{ small_segment::half_space() };
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};

@@ -33,56 +33,58 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <limits>
+
 //----------------------------------------------------------------------------
 
 template<typename T>
 class segment_t
 {
 public:
+	using domain_t = T;
 	struct sentinel_tag { T m_End{}; };
 	struct length_tag { T m_Length{}; };
 
-	static constexpr auto DomainMin{ std::numeric_limits<T>::min() };
-	static constexpr auto DomainMax{ std::numeric_limits<T>::max() };
+	constexpr segment_t() noexcept = default;
 
-	static constexpr segment_t HalfSpace{ T{}, sentinel_tag{ DomainMax } };
-
-	segment_t() noexcept = default;
-
-	segment_t(T const Start, sentinel_tag const End) noexcept
+	constexpr segment_t(T const Start, sentinel_tag const End) noexcept
 		: segment_t{ Start, End.m_End }
 	{}
 
-	segment_t(T const Start, length_tag const Length) noexcept
-		: segment_t{ Start, static_cast<T>(Start + Length.m_length) }
-	{}
-
-	template<typename Y>
-	explicit(false) segment_t(segment_t<Y> const Segment) noexcept:
-		segment_t(Segment.m_Start, Segment.m_End)
+	constexpr segment_t(T const Start, length_tag const Length) noexcept
+		: segment_t{ Start, static_cast<T>(Start + Length.m_Length) }
 	{}
 
 	[[nodiscard]]
-	T length() const noexcept { return m_End - m_Start; }
+	constexpr T length() const noexcept { return m_End - m_Start; }
 
 	[[nodiscard]]
-	bool empty() const noexcept { return !length(); }
+	constexpr bool empty() const noexcept { return !length(); }
 
 	// Not begin to avoid accidental misuse of std::begin(MySegment)
 	[[nodiscard]]
-	T start() const noexcept { assert(!empty()); return m_Start; }
+	constexpr T start() const noexcept { assert(!empty()); return m_Start; }
 
 	[[nodiscard]]
-	T end() const noexcept { assert(!empty()); return m_End; }
+	constexpr T end() const noexcept { assert(!empty()); return m_End; }
 
-	bool operator==(segment_t const& Other) const noexcept
+	constexpr bool operator==(segment_t const& Other) const noexcept
 	{
 		return empty() && Other.empty()
 			|| m_Start == Other.m_Start && m_End == Other.m_End;
 	}
 
+	[[nodiscard]]
+	static constexpr T domain_min() noexcept { return std::numeric_limits<T>::min(); }
+
+	[[nodiscard]]
+	static constexpr T domain_max() noexcept { return std::numeric_limits<T>::max(); }
+
+	[[nodiscard]]
+	static constexpr segment_t half_space()noexcept { return { T{}, sentinel_tag{ domain_max() } }; };
+
 private:
-	segment_t(T const Start, T const End) noexcept
+	constexpr segment_t(T const Start, T const End) noexcept
 		: m_Start{ Start }
 		, m_End{ End }
 	{
@@ -96,6 +98,5 @@ private:
 
 using small_segment = segment_t<short>;
 using segment = segment_t<int>;
-using large_segment = segment_t<size_t>;
 
 #endif // SEGMENT_HPP_DC38F7F7_0E1B_486E_8368_2ACE6415D234

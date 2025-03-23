@@ -3764,7 +3764,9 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 		FindAllList->SetPosition({ -1, MenuY1, 0, MenuY2 });
 		FindAllList->SetTitle(far::vformat(msg(lng::MEditSearchStatistics), FindAllList->size(), AllRefLines));
 		FindAllList->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
-		FindAllList->SetFixedLeftColumn(service_len, service_len);
+		FindAllList->SetFixedColumns(
+			{ { .TextSegment{ 0, small_segment::length_tag{ service_len } }, .CurrentWidth{ service_len }, .Separator{ BoxSymbols[BS_V1] } } },
+			{ service_len, small_segment::sentinel_tag{ small_segment::domain_max() } });
 		FindAllList->SetHelp(L"FindAllMenu"sv);
 		FindAllList->SetId(EditorFindAllListId);
 
