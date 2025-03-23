@@ -37,8 +37,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "segment.hpp"
 #include "type_traits.hpp"
 
+#include <algorithm>
 #include <ranges>
 #include <stdexcept>
+#include <type_traits>
 
 //----------------------------------------------------------------------------
 
@@ -135,7 +137,7 @@ segment_t<TC> intersect(segment_t<TA> const A, segment_t<TB> const B)
 	if (A.end() <= B.start())
 		return {};
 
-	return { B.start(), segment_t<TC>::sentinel_tag{ std::min(static_cast<TC>(A.end()), static_cast<TC>(B.end())) } };
+	return { static_cast<TC>(B.start()), typename segment_t<TC>::sentinel_tag{ std::min(static_cast<TC>(A.end()), static_cast<TC>(B.end())) } };
 }
 
 #endif // ALGORITHM_HPP_BBD588C0_4752_46B2_AAB9_65450622FFF0

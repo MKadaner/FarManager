@@ -555,16 +555,10 @@ namespace
 
 	string_view get_item_cell_text(string_view ItemName, small_segment CellSegment)
 	{
-		const auto Intersection{ intersect(large_segment{ 0, large_segment::length_tag{ ItemName.size() } }, CellSegment) };
+		const auto Intersection{ intersect(segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemName.size()) } }, CellSegment) };
 		if (Intersection.empty()) return {};
 		return ItemName.substr(Intersection.start(), Intersection.length());
 	};
-
-	int get_item_cell_visual_length(const string_view ItemName, small_segment CellSegment, const bool ShowAmpersand)
-	{
-		const auto ItemCellText{ get_item_cell_text(ItemName, CellSegment) };
-		return static_cast<int>(ShowAmpersand ? visual_string_length(ItemCellText) : HiStrlen(ItemCellText));
-	}
 
 	std::pair<int, int> item_hpos_limits(const int ItemLength, const int TextAreaWidth, const item_hscroll_policy Policy) noexcept
 	{
@@ -948,7 +942,7 @@ int VMenu::AddItem(MenuItemEx&& NewItem,int PosAdd)
 	if (PosAdd <= SelectPos)
 		SelectPos++;
 
-	const auto ItemLength{ get_item_cell_visual_length(NewMenuItem.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)) };
+	const auto ItemLength{ GetItemVisualLength(NewMenuItem.Name) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(NewMenuItem.HorizontalPosition, ItemLength, NewMenuItem.SafeGetFirstAnnotation());
 
@@ -968,7 +962,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 
 	auto& Item = Items[NewItem->Index];
 	m_HorizontalTracker->remove_item(
-		Item.HorizontalPosition, get_item_cell_visual_length(Item.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)), Item.SafeGetFirstAnnotation());
+		Item.HorizontalPosition, GetItemVisualLength(Item.Name), Item.SafeGetFirstAnnotation());
 
 	// Освободим память... от ранее занятого ;-)
 	if (NewItem->Item.Flags&LIF_DELETEUSERDATA)
@@ -981,7 +975,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 	UpdateItemFlags(NewItem->Index, NewItem->Item.Flags);
 	Item.SimpleUserData = NewItem->Item.UserData;
 
-	const auto ItemLength{ get_item_cell_visual_length(Item.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)) };
+	const auto ItemLength{ GetItemVisualLength(Item.Name) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(Item.HorizontalPosition, ItemLength, Item.SafeGetFirstAnnotation());
 
@@ -1017,7 +1011,7 @@ int VMenu::DeleteItem(int ID, int Count)
 			--ItemHiddenCount;
 
 		m_HorizontalTracker->remove_item(
-			I.HorizontalPosition, get_item_cell_visual_length(I.Name, m_ItemTextSegment, CheckFlags(VMENU_SHOWAMPERSAND)), I.SafeGetFirstAnnotation());
+			I.HorizontalPosition, GetItemVisualLength(I.Name), I.SafeGetFirstAnnotation());
 	}
 
 	// а вот теперь перемещения
@@ -1060,7 +1054,7 @@ void VMenu::clear()
 	m_MaxItemLength = 0;
 	m_HorizontalTracker->clear();
 	m_FixedColumns.clear();
-	m_ItemTextSegment = small_segment::HalfSpace;
+	m_ItemTextSegment = small_segment::half_space();
 
 	SetMenuFlags(VMENU_UPDATEREQUIRED);
 }
@@ -2321,7 +2315,7 @@ bool VMenu::SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos)
 {
 	if (Item.Flags & LIF_SEPARATOR) return false;
 
-	const auto ItemLength{ get_item_visual_length(CheckFlags(VMENU_SHOWAMPERSAND), Item.Name, m_LeftColumnWidth) };
+	const auto ItemLength{ GetItemVisualLength(Item.Name) };
 	if (ItemLength <= 0) return false;
 
 	const auto NewHPos = [&]
@@ -2860,7 +2854,7 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 		auto ItemCellTextToDisplay = CheckFlags(VMENU_SHOWAMPERSAND) ? string{ ItemCellText }: HiText2Str(ItemCellText, &HotkeyPos);
 		std::ranges::replace(ItemCellTextToDisplay, L'\t', L' ');
 
-		NeedRightHScroll = Item.HorizontalPosition + ItemCellTextToDisplay.size() > Layout.TextArea->length();
+		NeedRightHScroll = Item.HorizontalPosition + static_cast<int>(ItemCellTextToDisplay.size()) > Layout.TextArea->length();
 
 		DrawRegularItemCell(
 			ItemCellTextToDisplay,
@@ -2898,8 +2892,9 @@ void VMenu::DrawRegularItemCell(
 	std::vector<int>& HighlightMarkup,
 	const string_view BlankLine) const
 {
-	const auto TextSegment{
-		intersect(large_segment{ 0, large_segment::length_tag{ CellText.size() } }, segment{ -HorizontalPosition, segment::length_tag{ CellArea.length() }})};
+	const auto TextSegment{ intersect(
+		segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(CellText.size()) } },
+		segment{ -HorizontalPosition, segment::length_tag{ CellArea.length() }})};
 
 	GotoXY(CellArea.start(), Y);
 
@@ -3491,6 +3486,12 @@ int VMenu::CalculateTextAreaWidth() const
 {
 	const auto TextArea = menu_layout{ *this }.TextArea;
 	return TextArea ? TextArea->length() : 0;
+}
+
+int VMenu::GetItemVisualLength(const string_view ItemName) const
+{
+	const auto ItemCellText{ get_item_cell_text(ItemName, m_ItemTextSegment) };
+	return static_cast<int>(CheckFlags(VMENU_SHOWAMPERSAND) ? visual_string_length(ItemCellText) : HiStrlen(ItemCellText));
 }
 
 size_t VMenu::Text(string_view const Str) const
