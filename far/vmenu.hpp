@@ -199,7 +199,7 @@ public:
 	void SetDialogStyle(bool Style) { ChangeFlags(VMENU_WARNDIALOG, Style); SetColors(nullptr); }
 	void SetUpdateRequired(bool SetUpdate) { ChangeFlags(VMENU_UPDATEREQUIRED, SetUpdate); }
 	void SetMenuFlags(DWORD Flags) { VMFlags.Set(Flags); }
-	void SetFixedLeftColumn(std::vector<vmenu_fixed_column_t>&& FixedColumns);
+	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment);
 	void ClearFlags(DWORD Flags) { VMFlags.Clear(Flags); }
 	bool CheckFlags(DWORD Flags) const { return VMFlags.Check(Flags); }
 	DWORD GetFlags() const { return VMFlags.Flags(); }
@@ -342,6 +342,7 @@ private:
 	int m_MaxItemLength{};
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
 	std::vector<vmenu_fixed_column_t> m_FixedColumns;
+	small_segment m_ItemTextSegment{ 0, small_segment::domain_max };
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};

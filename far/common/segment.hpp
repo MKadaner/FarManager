@@ -41,8 +41,13 @@ class segment_t
 	using length_t = std::make_unsigned_t<T>;
 
 public:
+	using domain_t = T;
+
 	struct sentinel_tag { T m_end{}; };
 	struct length_tag { length_t m_length{}; };
+
+	static constexpr domain_min{ std::numeric_limits<domain_t>::min() };
+	static constexpr domain_max{ std::numeric_limits<domain_t>::max() };
 
 	segment_t() noexcept = default;
 
@@ -51,7 +56,7 @@ public:
 	{}
 
 	segment_t(T const Start, length_tag const Length) noexcept
-		: segment_t{ Start, static_cast<T>(Start + Length.m_length) }
+		: segment_t{ Start, safe_end(Start, Length) }
 	{}
 
 	template<typename Y>
@@ -60,7 +65,7 @@ public:
 	{}
 
 	[[nodiscard]]
-	length_t length() const noexcept { assert(m_Start <= m_End); return m_End - m_Start; }
+	length_t length() const noexcept { return m_End - m_Start; }
 
 	[[nodiscard]]
 	bool empty() const noexcept { return !length(); }
@@ -82,7 +87,15 @@ private:
 	segment_t(T const Start, T const End) noexcept
 		: m_Start{ Start }
 		, m_End{ End }
-	{}
+	{
+		assert(m_Start <= m_End);
+	}
+
+	static T safe_end(T const Start, length_tag const Length) noexcept
+	{
+		const auto UnsafeEnd{ static_cast<T>(Start + Length.m_length) };
+		return UnsafeEnd >= Start ? UnsafeEnd : domain_max;
+	}
 
 	T m_Start{};
 	T m_End{}; // One past last
@@ -90,5 +103,6 @@ private:
 
 using small_segment = segment_t<short>;
 using segment = segment_t<int>;
+using large_segment = segment_t<size_t>;
 
 #endif // SEGMENT_HPP_DC38F7F7_0E1B_486E_8368_2ACE6415D234
