@@ -216,6 +216,15 @@ struct menu_layout
 			+ (NeedBox || need_scrollbar(Menu, BoxType));
 	}
 
+	[[nodiscard]] static int get_title_service_area_size(const short BoxType)
+	{
+		// ╚═ Ctrl+Enter F5 Gray + Ctrl+Up Ctrl+Down ══╝
+		// ?^^                                      ^ ^?
+
+		const auto NeedBox = need_box(BoxType);
+		return NeedBox + 1 + 1 + 1 + 1 + NeedBox;
+	}
+
 private:
 	[[nodiscard]] static rectangle get_client_rect(const VMenu& Menu, short const BoxType) noexcept
 	{
@@ -2433,15 +2442,13 @@ void VMenu::Show()
 		if (!CheckFlags(VMENU_COMBOBOX))
 		{
 			const auto BoxType{ menu_layout::get_box_type(*this) };
-			const auto ServiceAreaSize = menu_layout::get_service_area_size(*this, BoxType);
-			const auto VisibleMaxItemLength = std::min(std::max(ScrX - ServiceAreaSize, 0), m_MaxItemLength);
-			const auto MenuWidth = ServiceAreaSize + VisibleMaxItemLength;
+			const auto MenuWidth = GetNaturalMenuWidth();
 
 			bool AutoCenter = false;
 
 			if (m_Where.left == -1)
 			{
-				m_Where.left = static_cast<short>(ScrX - MenuWidth) / 2;
+				m_Where.left = static_cast<short>(std::max((ScrX - MenuWidth) / 2, 0));
 				AutoCenter = true;
 			}
 
@@ -2449,7 +2456,7 @@ void VMenu::Show()
 				m_Where.left = 2;
 
 			if (m_Where.right <= 0)
-				m_Where.right = static_cast<short>(m_Where.left + MenuWidth);
+				m_Where.right = static_cast<short>(std::min(m_Where.left + MenuWidth, ScrX) - 1);
 
 			if (!AutoCenter && m_Where.right > ScrX-4+2*(BoxType==SHORT_DOUBLE_BOX || BoxType==SHORT_SINGLE_BOX))
 			{
@@ -3475,9 +3482,10 @@ std::vector<string> VMenu::AddHotkeys(std::span<menu_item> const MenuItems)
 	return Result;
 }
 
-size_t VMenu::GetNaturalMenuWidth() const
+int VMenu::GetNaturalMenuWidth() const
 {
-	return static_cast<size_t>(m_MaxItemLength) + menu_layout::get_service_area_size(*this);
+	// TBD: Account for titles!
+	return m_MaxItemLength + menu_layout::get_service_area_size(*this);
 }
 
 void VMenu::EnableFilter(bool const Enable)
