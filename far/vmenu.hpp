@@ -280,7 +280,7 @@ public:
 	static std::vector<string> AddHotkeys(std::span<menu_item> MenuItems);
 	static bool ClickHandler(window* Menu, int MenuClick);
 
-	[[nodiscard]] size_t GetNaturalMenuWidth() const;
+	[[nodiscard]] int GetNaturalMenuWidth() const;
 
 private:
 	friend struct menu_layout;
