@@ -237,6 +237,7 @@ private:
 	[[nodiscard]] static short fixed_columns_width(const VMenu& Menu) noexcept
 	{
 		const auto width{ std::ranges::fold_left_first(
+			// One position for separator
 			Menu.m_FixedColumns | std::views::transform([](const auto& column) { return column.CurrentWidth + !!column.CurrentWidth; }), std::plus{})
 			.value_or(0)
 		};
@@ -485,6 +486,7 @@ namespace
 	void markup_slice_boundaries(segment Segment, std::ranges::input_range auto const& Slices, std::vector<int>& Markup)
 	{
 		assert(!Segment.empty());
+		Markup.clear();
 
 		for (const auto& Slice : Slices)
 		{
@@ -501,36 +503,33 @@ namespace
 		Markup.emplace_back(Segment.end());
 	}
 
-	bool markup_slice_boundaries(
-		segment TextSegment,
+	void markup_slice_boundaries(
+		segment Segment,
 		const std::list<segment>& Annotations,
 		const std::optional<int> HotkeyPos,
-		std::vector<int>& HighlightMarkup)
+		std::vector<int>& Markup)
 	{
-		if (TextSegment.empty()) return false;
-
-		HighlightMarkup.clear();
+		assert(!Segment.empty());
 
 		if (!Annotations.empty())
 		{
 			markup_slice_boundaries(
-				TextSegment,
+				Segment,
 				Annotations,
-				HighlightMarkup);
-			return true;
+				Markup);
+			return;
 		}
 
 		if (HotkeyPos)
 		{
 			markup_slice_boundaries(
-				TextSegment,
+				Segment,
 				std::views::single(segment{ *HotkeyPos, segment::length_tag{ 1 } }),
-				HighlightMarkup);
-			return true;
+				Markup);
+			return;
 		}
 
-		HighlightMarkup.emplace_back(TextSegment.end());
-		return true;
+		Markup.assign(1, Segment.end());
 	}
 
 	bool item_flags_allow_focus(unsigned long long const Flags)
@@ -2839,35 +2838,28 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 {
 	const item_color_indicies ColorIndices{ Item };
 
-	const auto DrawDecorator = [&](const int X, std::tuple<vmenu_color_index, wchar_t> ColorAndChar)
-		{
-			GotoXY(X, Y);
-			set_color(Colors, std::get<vmenu_color_index>(ColorAndChar));
-			Text(std::get<wchar_t>(ColorAndChar));
-		};
-
 	if (Layout.FixedColumnsArea)
 	{
 		auto CurFixedColumnStart{ Layout.FixedColumnsArea->start() };
-		for (const auto CurFixedColumn : m_FixedColumns)
+
+		GotoXY(CurFixedColumnStart, Y);
+		set_color(Colors, ColorIndices.Normal);
+
+		for (const auto CurFixedColumn : m_FixedColumns | std::views::filter(&vmenu_fixed_column_t::CurrentWidth))
 		{
-			if (!CurFixedColumn.CurrentWidth)
-				continue;
+			const auto CellText{ get_item_cell_text(Item.Name, CurFixedColumn.TextSegment) };
+			const small_segment CellArea{ CurFixedColumnStart, small_segment::length_tag{ CurFixedColumn.CurrentWidth } };
+			const auto VisibleCellSegment{ intersect(
+				segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(CellText.size()) } },
+				segment{ 0, segment::length_tag{ CellArea.length() } }) };
 
-			DrawRegularItemCell(
-				get_item_cell_text(Item.Name, CurFixedColumn.TextSegment),
-				0,
-				{},
-				std::nullopt,
-				{ CurFixedColumnStart, small_segment::length_tag{ CurFixedColumn.CurrentWidth } },
-				Y,
-				ColorIndices,
-				HighlightMarkup,
-				BlankLine);
-			CurFixedColumnStart += CurFixedColumn.CurrentWidth;
+			if (!VisibleCellSegment.empty())
+				Text(CellText.substr(VisibleCellSegment.start(), VisibleCellSegment.length()));
 
-			DrawDecorator(CurFixedColumnStart, { ColorIndices.Normal, CurFixedColumn.Separator });
-			CurFixedColumnStart++;
+			Text(BlankLine.substr(0, CellArea.end() - WhereX()));
+			Text(CurFixedColumn.Separator);
+
+			CurFixedColumnStart += CellArea.end() + 1;
 		}
 	}
 
@@ -2877,22 +2869,46 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 	{
 		const auto ItemCellText{ get_item_cell_text(Item.Name, m_ItemTextSegment) };
 		auto HotkeyPos{ string::npos };
-		auto ItemCellTextToDisplay = CheckFlags(VMENU_SHOWAMPERSAND) ? string{ ItemCellText }: HiText2Str(ItemCellText, &HotkeyPos);
+		auto ItemCellTextToDisplay{ CheckFlags(VMENU_SHOWAMPERSAND) ? string{ ItemCellText }: HiText2Str(ItemCellText, &HotkeyPos) };
 		std::ranges::replace(ItemCellTextToDisplay, L'\t', L' ');
 
 		NeedRightHScroll = Item.HorizontalPosition + static_cast<int>(ItemCellTextToDisplay.size()) > Layout.TextArea->length();
 
-		DrawRegularItemCell(
-			ItemCellTextToDisplay,
-			Item.HorizontalPosition,
-			Item.Annotations,
-			HotkeyPos == string::npos ? std::nullopt : std::optional{ static_cast<int>(HotkeyPos) },
-			*Layout.TextArea,
-			Y,
-			ColorIndices,
-			HighlightMarkup,
-			BlankLine);
+		GotoXY(Layout.TextArea->start(), Y);
+		set_color(Colors, ColorIndices.Normal);
+		Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
+
+		const auto VisibleCellSegment{ intersect(
+			segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemCellTextToDisplay.size()) } },
+			segment{ -Item.HorizontalPosition, segment::length_tag{ Layout.TextArea->length() } }) };
+
+		if (!VisibleCellSegment.empty())
+		{
+			markup_slice_boundaries(VisibleCellSegment, Item.Annotations, HotkeyPos == string::npos ? std::nullopt : std::optional{ static_cast<int>(HotkeyPos) }, HighlightMarkup);
+
+			auto CurColorIndex{ ColorIndices.Normal };
+			auto AltColorIndex{ ColorIndices.Highlighted };
+			auto CurTextPos{ VisibleCellSegment.start() };
+
+			for (const auto SliceEnd : HighlightMarkup)
+			{
+				set_color(Colors, CurColorIndex);
+				Text(string_view{ ItemCellTextToDisplay }.substr(CurTextPos, SliceEnd - CurTextPos));
+				std::ranges::swap(CurColorIndex, AltColorIndex);
+				CurTextPos = SliceEnd;
+			}
+		}
+
+		set_color(Colors, ColorIndices.Normal);
+		Text(BlankLine.substr(0, Layout.TextArea->end() - WhereX()));
 	}
+
+	const auto DrawDecorator = [&](const int X, std::tuple<vmenu_color_index, wchar_t> ColorAndChar)
+		{
+			GotoXY(X, Y);
+			set_color(Colors, std::get<vmenu_color_index>(ColorAndChar));
+			Text(std::get<wchar_t>(ColorAndChar));
+		};
 
 	if (Layout.CheckMark)
 		DrawDecorator(*Layout.CheckMark, get_item_check_mark(Item, ColorIndices));
@@ -2907,44 +2923,24 @@ void VMenu::DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, c
 		DrawDecorator(*Layout.RightHScroll, get_item_right_hscroll(NeedRightHScroll, ColorIndices));
 }
 
-void VMenu::DrawRegularItemCell(
-	const string_view CellText,
-	const int HorizontalPosition,
-	const std::list<segment>& Annotations,
-	const std::optional<int> HotkeyPos,
-	const small_segment CellArea,
-	const int Y,
-	const item_color_indicies& ColorIndices,
-	std::vector<int>& HighlightMarkup,
-	const string_view BlankLine) const
-{
-	const auto TextSegment{ intersect(
-		segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(CellText.size()) } },
-		segment{ -HorizontalPosition, segment::length_tag{ CellArea.length() }})};
-
-	GotoXY(CellArea.start(), Y);
-
-	if (markup_slice_boundaries(TextSegment, Annotations, HotkeyPos, HighlightMarkup))
-	{
-		set_color(Colors, ColorIndices.Normal);
-		Text(BlankLine.substr(0, std::max(HorizontalPosition, 0)));
-
-		auto CurColorIndex{ ColorIndices.Normal };
-		auto AltColorIndex{ ColorIndices.Highlighted };
-		auto CurTextPos{ TextSegment.start() };
-
-		for (const auto SliceEnd : HighlightMarkup)
-		{
-			set_color(Colors, CurColorIndex);
-			Text(CellText.substr(CurTextPos, SliceEnd - CurTextPos));
-			std::ranges::swap(CurColorIndex, AltColorIndex);
-			CurTextPos = SliceEnd;
-		}
-	}
-
-	set_color(Colors, ColorIndices.Normal);
-	Text(BlankLine.substr(0, CellArea.end() - WhereX()));
-}
+//void VMenu::DrawRegularItemCell(
+//	const string_view CellText,
+//	const small_segment CellArea,
+//	const item_color_indicies& ColorIndices,
+//	const std::vector<int>& HighlightMarkup) const
+//{
+//	auto CurColorIndex{ ColorIndices.Normal };
+//	auto AltColorIndex{ ColorIndices.Highlighted };
+//	auto CurTextPos{ TextSegment.start() };
+//
+//	for (const auto SliceEnd : HighlightMarkup)
+//	{
+//		set_color(Colors, CurColorIndex);
+//		Text(CellText.substr(CurTextPos, SliceEnd - CurTextPos));
+//		std::ranges::swap(CurColorIndex, AltColorIndex);
+//		CurTextPos = SliceEnd;
+//	}
+//}
 
 int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
 {
