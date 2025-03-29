@@ -1868,6 +1868,13 @@ bool VMenu::ProcessKey(const Manager::Key& Key)
 
 			break;
 		}
+		case KEY_SHIFTF5:
+		{
+			if (ToggleFixedColumns())
+				DrawMenu();
+
+			break;
+		}
 		case KEY_MSWHEEL_UP:
 		{
 			SetSelectPos(SelectPos - 1, -1, true);
@@ -2421,6 +2428,25 @@ bool VMenu::AlignAnnotations()
 	const auto Guard{ m_HorizontalTracker->start_bulk_update_annotation(AlignPos) };
 	return SetAllItemsHPos(
 		[&](const MenuItemEx& Item) { return AlignPos - Item.SafeGetFirstAnnotation(); });
+}
+
+bool VMenu::ToggleFixedColumns()
+{
+	if (m_FixedColumns.empty()) return false;
+
+	if (auto firstHiddenColumn{ std::ranges::find(m_FixedColumns, 0, &vmenu_fixed_column_t::CurrentWidth) };
+		firstHiddenColumn != m_FixedColumns.end())
+	{
+		firstHiddenColumn->CurrentWidth = firstHiddenColumn->TextSegment.length();
+		return true;
+	}
+
+	for (auto& column : m_FixedColumns)
+	{
+		column.CurrentWidth = 0;
+	}
+
+	return true;
 }
 
 void VMenu::Show()
@@ -3094,7 +3120,7 @@ void VMenu::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, sm
 	m_FixedColumns = std::move(FixedColumns);
 	for (auto& column : FixedColumns)
 	{
-		column.CurrentWidth = std::min(column.CurrentWidth, column.TextSegment.length());
+		column.CurrentWidth = std::clamp(column.CurrentWidth, short{}, column.TextSegment.length());
 	}
 	m_ItemTextSegment = ItemTextSegment;
 }

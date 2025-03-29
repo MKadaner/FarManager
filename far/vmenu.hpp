@@ -322,6 +322,7 @@ private:
 	[[nodiscard]] bool SetAllItemsSmartHPos(int NewHPos);
 	[[nodiscard]] bool ShiftAllItemsHPos(int Shift);
 	[[nodiscard]] bool AlignAnnotations();
+	[[nodiscard]] bool ToggleFixedColumns();
 
 	void UpdateMaxLength(int ItemLength);
 	bool ShouldSendKeyToFilter(unsigned Key) const;
