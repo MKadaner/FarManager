@@ -296,6 +296,20 @@ private:
 	void ConnectSeparator(size_t ItemIndex, string& separator, int BoxType) const;
 	void ApplySeparatorName(const MenuItemEx& Item, string& separator) const;
 	void DrawRegularItem(const MenuItemEx& Item, const menu_layout& Layout, int Y, std::vector<int>& HighlightMarkup, string_view BlankLine) const;
+	void DrawFixedColumns(
+		const MenuItemEx& Item,
+		small_segment FixedColumnsArea,
+		int Y,
+		const item_color_indicies& ColorIndices,
+		string_view BlankLine) const;
+	[[nodiscard]]
+	bool DrawItemText(
+		const MenuItemEx& Item,
+		small_segment TextArea,
+		int Y,
+		const item_color_indicies& ColorIndices,
+		std::vector<int>& HighlightMarkup,
+		string_view BlankLine) const;
 
 	[[nodiscard]] int CalculateTextAreaWidth() const;
 	[[nodiscard]] int GetItemVisualLength(string_view ItemName) const; // Intersected with m_ItemTextSegment
