@@ -73,7 +73,7 @@ public:
 	void SetBoxType(int BoxType);
 	void SetMenuFlags(DWORD Flags);
 	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment);
-	void AssignHighlights(bool Reverse = false);
+	void EnableAutoHighlight(bool Reverse = false);
 	void clear();
 	int DeleteItem(int ID,int Count=1);
 	int AddItem(const MenuItemEx& NewItem,int PosAdd = std::numeric_limits<int>::max());

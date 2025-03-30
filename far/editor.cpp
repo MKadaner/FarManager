@@ -3457,7 +3457,7 @@ namespace
 						.Separator{ BoxSymbols[BS_V1] }
 					},
 				},
-				{ ItemTextStart, small_segment::sentinel_tag{ small_segment::domain_max() } }
+				small_segment::ray(ItemTextStart)
 			);
 		}
 

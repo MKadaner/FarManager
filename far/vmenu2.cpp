@@ -423,7 +423,7 @@ void VMenu2::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, c
 	ListBox().SetFixedColumns(std::move(FixedColumns), ItemTextSegment);
 }
 
-void VMenu2::AssignHighlights(bool Reverse)
+void VMenu2::EnableAutoHighlight(bool Reverse)
 {
 	SetMenuFlags(VMENU_AUTOHIGHLIGHT | (Reverse? VMENU_REVERSEHIGHLIGHT : VMENU_NONE));
 }

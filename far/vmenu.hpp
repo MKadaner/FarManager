@@ -88,19 +88,19 @@ enum VMENU_FLAGS
 
 struct menu_item
 {
-	string Name;
+	string NameXXX;
 	LISTITEMFLAGS Flags{};
 	DWORD AccelKey{};
 
 	menu_item() = default;
 
 	explicit menu_item(string_view const Text):
-		Name(Text)
+		NameXXX(Text)
 	{
 	}
 
 	menu_item(string_view const Text, LISTITEMFLAGS const Flags, DWORD const AccelKey = 0):
-		Name(Text),
+		NameXXX(Text),
 		Flags(Flags),
 		AccelKey(AccelKey)
 	{
@@ -347,7 +347,7 @@ private:
 	int m_MaxItemLength{}; // Intersected with m_ItemTextSegment
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
 	std::vector<vmenu_fixed_column_t> m_FixedColumns;
-	small_segment m_ItemTextSegment{ small_segment::half_space() };
+	small_segment m_ItemTextSegment{ small_segment::ray() };
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};

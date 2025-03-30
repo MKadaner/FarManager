@@ -40,6 +40,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 template<typename T>
 class segment_t
 {
+	[[nodiscard]]
+	static constexpr T domain_min() noexcept { return std::numeric_limits<T>::min(); }
+
+	[[nodiscard]]
+	static constexpr T domain_max() noexcept { return std::numeric_limits<T>::max(); }
+
 public:
 	using domain_t = T;
 	struct sentinel_tag { T m_End{}; };
@@ -75,13 +81,7 @@ public:
 	}
 
 	[[nodiscard]]
-	static constexpr T domain_min() noexcept { return std::numeric_limits<T>::min(); }
-
-	[[nodiscard]]
-	static constexpr T domain_max() noexcept { return std::numeric_limits<T>::max(); }
-
-	[[nodiscard]]
-	static constexpr segment_t half_space()noexcept { return { T{}, sentinel_tag{ domain_max() } }; };
+	static constexpr segment_t ray(T InitialPoint = T{}) noexcept { return { InitialPoint, sentinel_tag{ domain_max() } }; };
 
 private:
 	constexpr segment_t(T const Start, T const End) noexcept
