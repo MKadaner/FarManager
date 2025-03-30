@@ -216,6 +216,17 @@ struct menu_layout
 			+ (NeedBox || need_scrollbar(Menu, BoxType));
 	}
 
+	[[nodiscard]] static short fixed_columns_width(const VMenu& Menu) noexcept
+	{
+		const auto width{ std::ranges::fold_left_first(
+			// Plus one position for separator
+			Menu.m_FixedColumns | std::views::transform([](const auto& column) { return column.CurrentWidth + !!column.CurrentWidth; }), std::plus{})
+			.value_or(0)
+		};
+		assert(std::in_range<short>(width));
+		return static_cast<short>(width);
+	}
+
 	[[nodiscard]] static int get_title_service_area_size(const bool NeedBox)
 	{
 		// ╚═ Ctrl+Enter F5 Gray + Ctrl+Up Ctrl+Down ══╝
@@ -234,16 +245,6 @@ private:
 
 	[[nodiscard]] static bool need_box(short BoxType) noexcept { return BoxType != NO_BOX; }
 	[[nodiscard]] static bool need_check_mark() noexcept { return true; }
-	[[nodiscard]] static short fixed_columns_width(const VMenu& Menu) noexcept
-	{
-		const auto width{ std::ranges::fold_left_first(
-			// One position for separator
-			Menu.m_FixedColumns | std::views::transform([](const auto& column) { return column.CurrentWidth + !!column.CurrentWidth; }), std::plus{})
-			.value_or(0)
-		};
-		assert(std::in_range<short>(width));
-		return static_cast<short>(width);
-	}
 	[[nodiscard]] static bool need_left_hscroll() noexcept { return true; }
 	[[nodiscard]] static bool need_right_hscroll() noexcept { return true; }
 	[[nodiscard]] static bool need_submenu(const VMenu& Menu) noexcept { return Menu.ItemSubMenusCount > 0; }
@@ -612,6 +613,23 @@ namespace
 
 		// Shift right. It's just shift left seen from behind the screen.
 		return -adjust_hpos_shift(-Shift, TextAreaWidth - Right, TextAreaWidth - Left, TextAreaWidth);
+	}
+
+	void toggle_fixed_columns(std::vector<vmenu_fixed_column_t>& FixedColumns)
+	{
+		assert(!FixedColumns.empty());
+
+		if (auto firstHiddenColumn{ std::ranges::find(FixedColumns, 0, &vmenu_fixed_column_t::CurrentWidth) };
+			firstHiddenColumn != FixedColumns.end())
+		{
+			firstHiddenColumn->CurrentWidth = firstHiddenColumn->TextSegment.length();
+			return;
+		}
+
+		for (auto& column : FixedColumns)
+		{
+			column.CurrentWidth = 0;
+		}
 	}
 
 	[[nodiscard]] const FarColor& get_color(const vmenu_colors_t& VMenuColors, vmenu_color_index ColorIndex) noexcept
@@ -2433,17 +2451,10 @@ bool VMenu::ToggleFixedColumns()
 {
 	if (m_FixedColumns.empty()) return false;
 
-	if (auto firstHiddenColumn{ std::ranges::find(m_FixedColumns, 0, &vmenu_fixed_column_t::CurrentWidth) };
-		firstHiddenColumn != m_FixedColumns.end())
-	{
-		firstHiddenColumn->CurrentWidth = firstHiddenColumn->TextSegment.length();
-		return true;
-	}
+	const auto FixedColumnWidthBefore{ menu_layout::fixed_columns_width(*this) };
+	toggle_fixed_columns(m_FixedColumns);
 
-	for (auto& column : m_FixedColumns)
-	{
-		column.CurrentWidth = 0;
-	}
+	(void)ShiftAllItemsHPos(FixedColumnWidthBefore - menu_layout::fixed_columns_width(*this));
 
 	return true;
 }
@@ -2910,7 +2921,7 @@ bool VMenu::DrawItemText(
 	GotoXY(TextArea.start(), Y);
 	set_color(Colors, ColorIndices.Normal);
 
-	Text(BlankLine.substr(0, std::max(Item.HorizontalPosition, 0)));
+	Text(BlankLine.substr(0, std::clamp(Item.HorizontalPosition, 0, static_cast<int>(TextArea.length()))));
 
 	const auto [ItemText, HotkeyPos]{ [&]{
 		const auto RawItemText{ get_item_cell_text(Item.Name, m_ItemTextSegment) };
