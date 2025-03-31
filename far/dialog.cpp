@@ -766,8 +766,8 @@ void Dialog::InitDialogObjects(size_t ID, bool ReInit)
 				ListPtr->ChangeFlags(VMENU_AUTOHIGHLIGHT, (Item.Flags & DIF_LISTAUTOHIGHLIGHT) != 0);
 				ListPtr->ChangeFlags(VMENU_NOMERGEBORDER, (Item.Flags & DIF_LISTNOMERGEBORDER) != 0);
 
-				if (Item.Flags & DIF_LISTAUTOHIGHLIGHT)
-					ListPtr->AssignHighlights();
+				//if (Item.Flags & DIF_LISTAUTOHIGHLIGHT)
+				//	ListPtr->AssignHighlights();
 
 				ListPtr->SetDialogStyle(DialogMode.Check(DMODE_WARNINGSTYLE));
 				ListPtr->SetPosition(
@@ -828,8 +828,8 @@ void Dialog::InitDialogObjects(size_t ID, bool ReInit)
 					ListPtr->ChangeFlags(VMENU_SHOWAMPERSAND, (Item.Flags& DIF_LISTNOAMPERSAND) == 0);
 					ListPtr->ChangeFlags(VMENU_AUTOHIGHLIGHT, (Item.Flags& DIF_LISTAUTOHIGHLIGHT) != 0);
 
-					if (Item.Flags & DIF_LISTAUTOHIGHLIGHT)
-						ListPtr->AssignHighlights();
+					//if (Item.Flags & DIF_LISTAUTOHIGHLIGHT)
+					//	ListPtr->AssignHighlights();
 
 					if (Item.ListItems && !DialogMode.Check(DMODE_OBJECTS_CREATED))
 						ListPtr->AddItem(Item.ListItems);

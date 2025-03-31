@@ -447,7 +447,7 @@ namespace
 	{
 		MenuItemEx Result;
 		Result.Flags = FItem.Flags;
-		Result.NameXXX = NullToEmpty(FItem.Text);
+		Result.Name = NullToEmpty(FItem.Text);
 		Result.SimpleUserData = FItem.UserData;
 		return Result;
 	}
@@ -959,7 +959,7 @@ int VMenu::AddItem(MenuItemEx&& NewItem,int PosAdd)
 	if (PosAdd <= SelectPos)
 		SelectPos++;
 
-	const auto ItemLength{ GetItemVisualLength(NewMenuItem.NameXXX) };
+	const auto ItemLength{ GetItemVisualLength(NewMenuItem.Name) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(NewMenuItem.HorizontalPosition, ItemLength, NewMenuItem.SafeGetFirstAnnotation());
 
@@ -979,7 +979,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 
 	auto& Item = Items[NewItem->Index];
 	m_HorizontalTracker->remove_item(
-		Item.HorizontalPosition, GetItemVisualLength(Item.NameXXX), Item.SafeGetFirstAnnotation());
+		Item.HorizontalPosition, GetItemVisualLength(Item.Name), Item.SafeGetFirstAnnotation());
 
 	// Освободим память... от ранее занятого ;-)
 	if (NewItem->Item.Flags&LIF_DELETEUSERDATA)
@@ -988,11 +988,11 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 	}
 	Item.Annotations.clear();
 
-	Item.NameXXX = NullToEmpty(NewItem->Item.Text);
+	Item.Name = NullToEmpty(NewItem->Item.Text);
 	UpdateItemFlags(NewItem->Index, NewItem->Item.Flags);
 	Item.SimpleUserData = NewItem->Item.UserData;
 
-	const auto ItemLength{ GetItemVisualLength(Item.NameXXX) };
+	const auto ItemLength{ GetItemVisualLength(Item.Name) };
 	UpdateMaxLength(ItemLength);
 	m_HorizontalTracker->add_item(Item.HorizontalPosition, ItemLength, Item.SafeGetFirstAnnotation());
 
@@ -1028,7 +1028,7 @@ int VMenu::DeleteItem(int ID, int Count)
 			--ItemHiddenCount;
 
 		m_HorizontalTracker->remove_item(
-			I.HorizontalPosition, GetItemVisualLength(I.NameXXX), I.SafeGetFirstAnnotation());
+			I.HorizontalPosition, GetItemVisualLength(I.Name), I.SafeGetFirstAnnotation());
 	}
 
 	// а вот теперь перемещения
@@ -1177,7 +1177,7 @@ void VMenu::FilterStringUpdated()
 				ItemHiddenCount++;
 			}
 
-			if (CurItem.NameXXX.empty() && PrevGroup == -1)
+			if (CurItem.Name.empty() && PrevGroup == -1)
 			{
 				CurItem.Flags |= LIF_FILTERED;
 				ItemHiddenCount++;
@@ -1190,7 +1190,7 @@ void VMenu::FilterStringUpdated()
 		}
 		else
 		{
-			if(!contains_icase(remove_highlight(trim(CurItem.NameXXX)), strFilter))
+			if(!contains_icase(remove_highlight(trim(CurItem.Name)), strFilter))
 			{
 				CurItem.Flags |= LIF_FILTERED;
 				ItemHiddenCount++;
@@ -1362,7 +1362,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 						continue;
 
 					int Res = 0;
-					const auto strTemp = trim(HiText2Str(Item.NameXXX));
+					const auto strTemp = trim(HiText2Str(Item.Name));
 
 					switch (iParam)
 					{
@@ -1407,7 +1407,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 			const auto& menuEx = at(iParam);
 			if (OpCode == MCODE_F_MENU_GETVALUE)
 			{
-				*static_cast<string*>(vParam) = menuEx.NameXXX;
+				*static_cast<string*>(vParam) = menuEx.Name;
 				return 1;
 			}
 			else
@@ -1444,7 +1444,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 		{
 			if (!HasVisible())
 				return 0;
-			*static_cast<string*>(vParam) = at(SelectPos).NameXXX;
+			*static_cast<string*>(vParam) = at(SelectPos).Name;
 			return 1;
 		}
 
@@ -2339,7 +2339,7 @@ bool VMenu::SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos)
 {
 	if (Item.Flags & LIF_SEPARATOR) return false;
 
-	const auto ItemLength{ GetItemVisualLength(Item.NameXXX) };
+	const auto ItemLength{ GetItemVisualLength(Item.Name) };
 	if (ItemLength <= 0) return false;
 
 	const auto NewHPos = [&]
@@ -2640,8 +2640,7 @@ void VMenu::DrawMenu()
 	if (GetShowItemCount() <= 0)
 		return;
 
-	if (CheckFlags(VMENU_AUTOHIGHLIGHT))
-		AssignHighlights(CheckFlags(VMENU_REVERSEHIGHLIGHT));
+	AssignHighlights();
 
 	const auto VisualTopPos{ AdjustTopPos(Layout.BoxType) };
 
@@ -2801,10 +2800,9 @@ void VMenu::DrawSeparator(const size_t ItemIndex, const int BoxType, const int Y
 
 void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const int BoxType) const
 {
-	TBD!!!
 	// We should think of how to deal with fixed columns and horizontally shifted items.
 	// Maybe just use fixed columns where necessary and only connect separators in trivial cases?
-	if (CheckFlags(VMENU_NOMERGEBORDER) || m_FixedColumns.empty() || m_ItemTextSegment.start() > 0 || separator.size() <= 3)
+	if (CheckFlags(VMENU_NOMERGEBORDER) || !m_FixedColumns.empty() || m_ItemTextSegment.start() > 0 || separator.size() <= 3)
 		return;
 
 	for (const auto I : std::views::iota(0uz, separator.size() - 3))
@@ -2812,11 +2810,11 @@ void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const in
 		const auto AnyPrev = ItemIndex > 0 && Items[ItemIndex - 1].HorizontalPosition == 0;
 		const auto AnyNext = ItemIndex < Items.size() - 1 && Items[ItemIndex + 1].HorizontalPosition == 0;
 
-		const auto PCorrection = AnyPrev && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex - 1].NameXXX, I) - I : 0;
-		const auto NCorrection = AnyNext && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex + 1].NameXXX, I) - I : 0;
+		const auto PCorrection = AnyPrev && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex - 1].Name, I) - I : 0;
+		const auto NCorrection = AnyNext && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex + 1].Name, I) - I : 0;
 
-		wchar_t PrevItem = (AnyPrev && Items[ItemIndex - 1].NameXXX.size() > I + PCorrection)? Items[ItemIndex - 1].NameXXX[I + PCorrection] : 0;
-		wchar_t NextItem = (AnyNext && Items[ItemIndex + 1].NameXXX.size() > I + NCorrection)? Items[ItemIndex + 1].NameXXX[I + NCorrection] : 0;
+		wchar_t PrevItem = (AnyPrev && Items[ItemIndex - 1].Name.size() > I + PCorrection)? Items[ItemIndex - 1].Name[I + PCorrection] : 0;
+		wchar_t NextItem = (AnyNext && Items[ItemIndex + 1].Name.size() > I + NCorrection)? Items[ItemIndex + 1].Name[I + NCorrection] : 0;
 
 		if (!PrevItem && !NextItem)
 			break;
@@ -2837,14 +2835,14 @@ void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const in
 
 void VMenu::ApplySeparatorName(const MenuItemEx& Item, string& separator) const
 {
-	if (Item.NameXXX.empty() || separator.size() <= 3)
+	if (Item.Name.empty() || separator.size() <= 3)
 		return;
 
-	auto NameWidth{ std::min(Item.NameXXX.size(), separator.size() - 2) };
+	auto NameWidth{ std::min(Item.Name.size(), separator.size() - 2) };
 	auto NamePos{ (separator.size() - NameWidth) / 2 };
 
 	separator[NamePos - 1] = L' ';
-	separator.replace(NamePos, NameWidth, fit_to_left(Item.NameXXX, NameWidth));
+	separator.replace(NamePos, NameWidth, fit_to_left(Item.Name, NameWidth));
 	separator[NamePos + NameWidth] = L' ';
 }
 
@@ -2896,7 +2894,7 @@ void VMenu::DrawFixedColumns(
 	{
 		const segment CellArea{ CurCellAreaStart, segment::length_tag{ CurFixedColumn.CurrentWidth } };
 
-		const auto CellText{ get_item_cell_text(Item.NameXXX, CurFixedColumn.TextSegment) };
+		const auto CellText{ get_item_cell_text(Item.Name, CurFixedColumn.TextSegment) };
 		const auto VisibleCellSegment{ intersect(
 			segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(CellText.size()) } },
 			segment{ 0, segment::length_tag{ CellArea.length()}})};
@@ -2927,7 +2925,7 @@ bool VMenu::DrawItemText(
 	Text(BlankLine.substr(0, std::clamp(Item.HorizontalPosition, 0, static_cast<int>(TextArea.length()))));
 
 	const auto [ItemText, HighlightPos]{ [&]{
-		const auto RawItemText{ get_item_cell_text(Item.NameXXX, m_ItemTextSegment) };
+		const auto RawItemText{ get_item_cell_text(Item.Name, m_ItemTextSegment) };
 		auto HotkeyPos{ string::npos };
 		auto ItemText{ CheckFlags(VMENU_SHOWAMPERSAND) ? string{ RawItemText } : HiText2Str(RawItemText, &HotkeyPos) };
 		std::ranges::replace(ItemText, L'\t', L' ');
@@ -3004,13 +3002,12 @@ wchar_t VMenu::GetHighlights(const MenuItemEx* const Item) const
 		return 0;
 
 	wchar_t Ch;
-	return HiTextHotkey(get_item_cell_text(Item->NameXXX, m_ItemTextSegment), Ch)? Ch : 0;
+	return HiTextHotkey(get_item_cell_text(Item->Name, m_ItemTextSegment), Ch)? Ch : 0;
 }
 
-void VMenu::AssignHighlights(bool Reverse)
+void VMenu::AssignHighlights()
 {
-	SetMenuFlags(VMENU_AUTOHIGHLIGHT | (Reverse? VMENU_REVERSEHIGHLIGHT : VMENU_NONE));
-
+	if (!CheckFlags(VMENU_AUTOHIGHLIGHT)) return;
 	if (CheckFlags(VMENU_SHOWAMPERSAND)) return;
 
 	static_assert(sizeof(wchar_t) == 2, "512 MB for a bitset is too much, rewrite it.");
@@ -3032,15 +3029,21 @@ void VMenu::AssignHighlights(bool Reverse)
 		return true;
 	};
 
-	const auto MaybeReverse{ Reverse ? std::views::reverse : std::views::all };
+	const auto MaybeReversedItems{ [&]() -> std::generator<MenuItemEx&>
+		{
+			if (CheckFlags(VMENU_REVERSEHIGHLIGHT))
+				for (auto& Item : Items | std::views::reverse) co_yield Item;
+			else
+				for (auto& Item : Items) co_yield Item;
+		} };
 
 	// проверка заданных хоткеев
-	for (auto& Item : MaybeReverse(Items))
+	for (auto& Item : MaybeReversedItems())
 	{
 		wchar_t Hotkey{};
 		size_t HotkeyVisualPos{};
 		// TODO: проверка на LIF_HIDDEN
-		if (HiTextHotkey(get_item_cell_text(Item.NameXXX, m_ItemTextSegment), Hotkey, &HotkeyVisualPos) && RegisterHotkey(Hotkey))
+		if (HiTextHotkey(get_item_cell_text(Item.Name, m_ItemTextSegment), Hotkey, &HotkeyVisualPos) && RegisterHotkey(Hotkey))
 		{
 			Item.AutoHotkey = Hotkey;
 			Item.AutoHotkeyPos = HotkeyVisualPos;
@@ -3048,10 +3051,10 @@ void VMenu::AssignHighlights(bool Reverse)
 	}
 
 	// TODO:  ЭТОТ цикл нужно уточнить - возможно вылезут артефакты (хотя не уверен)
-	for (auto& Item : MaybeReverse(Items))
+	for (auto& Item : MaybeReversedItems())
 	{
 		size_t HotkeyVisualPos;
-		auto MenuItemForDisplay = HiText2Str(get_item_cell_text(Item.NameXXX, m_ItemTextSegment), &HotkeyVisualPos);
+		auto MenuItemForDisplay = HiText2Str(get_item_cell_text(Item.Name, m_ItemTextSegment), &HotkeyVisualPos);
 		if (HotkeyVisualPos != string::npos)
 			continue;
 
@@ -3076,12 +3079,16 @@ bool VMenu::CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos,
 	if (CheckFlags(VMENU_LISTBOX))
 		ClearDone();
 
-	FOR_CONST_RANGE(Items, Iterator)
+	for (const auto& Item : Items)
 	{
-		auto& CurItem = *Iterator;
-		if (item_can_have_focus(CurItem) && ((!Type && CurItem.AccelKey && Key == CurItem.AccelKey) || (Type && (CurItem.AutoHotkey || !CheckFlags(VMENU_SHOWAMPERSAND)) && IsKeyHighlighted(CurItem.Name, Key, Translate, CurItem.AutoHotkey))))
+		if (!item_can_have_focus(Item)) continue;
+
+		if ((!Type && Item.AccelKey && Key == Item.AccelKey)
+			|| (Type
+				&& (Item.AutoHotkey || !CheckFlags(VMENU_SHOWAMPERSAND))
+				&& IsKeyHighlighted(get_item_cell_text(Item.Name, m_ItemTextSegment), Key, Translate, Item.AutoHotkey)))
 		{
-			NewPos=static_cast<int>(Iterator - Items.cbegin());
+			NewPos = static_cast<int>(std::ranges::distance(&*Items.cbegin(), &Item));
 			if (ChangePos)
 			{
 				SetSelectPos(NewPos, 1);
@@ -3422,6 +3429,8 @@ int VMenu::FindItem(int StartIndex, string_view const Pattern, unsigned long lon
 	{
 		for (const auto I: std::views::iota(static_cast<size_t>(StartIndex), Items.size()))
 		{
+			// Consider: Strictly speaking, we should remove highlight
+			// only within m_ItemTextSegment leaving everything else intact.
 			const auto strTmpBuf = remove_highlight(Items[I].Name);
 
 			if (Flags&LIFIND_EXACTMATCH)
@@ -3446,6 +3455,8 @@ void VMenu::SortItems(bool Reverse, int Offset)
 {
 	SortItems([](const MenuItemEx& a, const MenuItemEx& b, const SortItemParam& Param)
 	{
+		// Consider: Strictly speaking, we should remove highlight
+		// only within m_ItemTextSegment leaving everything else intact.
 		const auto
 			strName1 = remove_highlight(a.Name),
 			strName2 = remove_highlight(b.Name);
@@ -3489,6 +3500,7 @@ const UUID& VMenu::Id() const
 	return MenuId;
 }
 
+// Consider: Do we need this function? Maybe client should rely on VMENU_AUTOHIGHLIGHT?
 std::vector<string> VMenu::AddHotkeys(std::span<menu_item> const MenuItems)
 {
 	std::vector<string> Result(MenuItems.size());

@@ -88,19 +88,19 @@ enum VMENU_FLAGS
 
 struct menu_item
 {
-	string NameXXX;
+	string Name;
 	LISTITEMFLAGS Flags{};
 	DWORD AccelKey{};
 
 	menu_item() = default;
 
 	explicit menu_item(string_view const Text):
-		NameXXX(Text)
+		Name(Text)
 	{
 	}
 
 	menu_item(string_view const Text, LISTITEMFLAGS const Flags, DWORD const AccelKey = 0):
-		NameXXX(Text),
+		Name(Text),
 		Flags(Flags),
 		AccelKey(AccelKey)
 	{
@@ -204,7 +204,6 @@ public:
 	bool CheckFlags(DWORD Flags) const { return VMFlags.Check(Flags); }
 	DWORD GetFlags() const { return VMFlags.Flags(); }
 	DWORD ChangeFlags(DWORD Flags, bool Status) { return VMFlags.Change(Flags, Status); }
-	void AssignHighlights(bool Reverse = false);
 	void SetColors(const FarDialogItemColors *ColorsIn = nullptr);
 	void GetColors(const FarDialogItemColors *ColorsOut);
 	void SetOneColor(int Index, PaletteColors Color);
@@ -317,6 +316,7 @@ private:
 	int GetItemPosition(int Position) const;
 	bool CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos, int& NewPos);
 	int CheckHighlights(wchar_t CheckSymbol,int StartPos=0) const;
+	void AssignHighlights();
 	wchar_t GetHighlights(const MenuItemEx *Item) const;
 
 	[[nodiscard]] bool SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos);
