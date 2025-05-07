@@ -63,12 +63,12 @@ void VMenu2::Pack()
 
 MenuItemEx& VMenu2::at(size_t n)
 {
-	return ListBox().at(n);
+	return ListBox().atXXX(n);
 }
 
 MenuItemEx& VMenu2::current()
 {
-	return ListBox().current();
+	return ListBox().currentXXX();
 }
 
 int VMenu2::GetShowItemCount() const
@@ -418,9 +418,9 @@ void VMenu2::SetMenuFlags(DWORD Flags)
 	SendMessage(DM_SETDLGITEMSHORT, 0, &fdi);
 }
 
-void VMenu2::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, const small_segment ItemTextSegment)
+void VMenu2::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, const small_segment ItemTextSegment, vmenu_api_item_name_formatter&& Formatter)
 {
-	ListBox().SetFixedColumns(std::move(FixedColumns), ItemTextSegment);
+	ListBox().SetFixedColumns(std::move(FixedColumns), ItemTextSegment, std::move(Formatter));
 }
 
 void VMenu2::EnableAutoHighlight(bool Reverse)

@@ -3457,7 +3457,8 @@ namespace
 						.Separator = BoxSymbols[BS_V1]
 					},
 				},
-				small_segment::ray(ItemTextStart)
+				small_segment::ray(ItemTextStart),
+				{}
 			);
 		}
 

@@ -1312,7 +1312,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 		case MCODE_F_MENU_CHECKHOTKEY:
 		{
 			const auto str = static_cast<const wchar_t*>(vParam);
-			return GetVisualPos(CheckHighlights(*str, VisualPosToReal(static_cast<int>(iParam)))) + 1;
+			return GetVisualPos(CheckHighlightsForApi(*str, VisualPosToReal(static_cast<int>(iParam)))) + 1;
 		}
 		case MCODE_F_MENU_SELECT:
 		{
@@ -1356,13 +1356,13 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 							break;
 					}
 
-					const auto& Item = at(I);
+					const auto& Item = atXXX(I);
 
 					if (!item_can_have_focus(Item))
 						continue;
 
 					int Res = 0;
-					const auto strTemp = trim(HiText2Str(Item.Name));
+					const auto strTemp = trim(HiText2Str(GetItemNameForApi(Item)));
 
 					switch (iParam)
 					{
@@ -1404,15 +1404,15 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 			if (iParam < 0 || iParam >= static_cast<long long>(Items.size()))
 				return 0;
 
-			const auto& menuEx = at(iParam);
+			const auto& menuEx = atXXX(iParam);
 			if (OpCode == MCODE_F_MENU_GETVALUE)
 			{
-				*static_cast<string*>(vParam) = menuEx.Name;
+				*static_cast<string*>(vParam) = GetItemNameForApi(menuEx);
 				return 1;
 			}
 			else
 			{
-				return GetHighlights(&menuEx);
+				return GetHighlightsForApi(&menuEx);
 			}
 		}
 
@@ -1424,7 +1424,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 			if (iParam < 0 || iParam >= static_cast<long long>(size()))
 				return -1;
 
-			const auto& menuEx = at(iParam);
+			const auto& menuEx = atXXX(iParam);
 
 			auto RetValue = menuEx.Flags;
 
@@ -1444,7 +1444,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 		{
 			if (!HasVisible())
 				return 0;
-			*static_cast<string*>(vParam) = at(SelectPos).Name;
+			*static_cast<string*>(vParam) = GetItemNameForApi(atXXX(SelectPos));
 			return 1;
 		}
 
@@ -2970,7 +2970,7 @@ bool VMenu::DrawItemText(
 	return Item.HorizontalPosition + static_cast<int>(ItemText.size()) > TextArea.length();
 }
 
-int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
+int VMenu::CheckHighlightsForApi(wchar_t CheckSymbol, int StartPos) const
 {
 	if (CheckSymbol)
 		CheckSymbol=upper(CheckSymbol);
@@ -2980,7 +2980,7 @@ int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
 		if (!item_is_visible(Items[I]))
 			continue;
 
-		if (const auto Ch = GetHighlights(&Items[I]))
+		if (const auto Ch = GetHighlightsForApi(&Items[I]))
 		{
 			if (CheckSymbol == upper(Ch) || CheckSymbol == upper(KeyToKeyLayout(Ch)))
 				return static_cast<int>(I);
@@ -2994,7 +2994,7 @@ int VMenu::CheckHighlights(wchar_t CheckSymbol, int StartPos) const
 	return -1;
 }
 
-wchar_t VMenu::GetHighlights(const MenuItemEx* const Item) const
+wchar_t VMenu::GetHighlightsForApi(const MenuItemEx* const Item) const
 {
 	if (!Item)
 		return 0;
@@ -3006,7 +3006,7 @@ wchar_t VMenu::GetHighlights(const MenuItemEx* const Item) const
 		return 0;
 
 	wchar_t Ch;
-	return HiTextHotkey(GetItemText(*Item), Ch)? Ch : 0;
+	return HiTextHotkey(GetItemNameForApi(*Item), Ch)? Ch : 0;
 }
 
 void VMenu::AssignHighlights(const menu_layout& Layout)
@@ -3167,7 +3167,7 @@ void VMenu::SetTitle(string_view const Title)
 	strTitle = Title;
 }
 
-void VMenu::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment)
+void VMenu::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment, vmenu_api_item_name_formatter&& Formatter)
 {
 	m_FixedColumns = std::move(FixedColumns);
 	for (auto& column : m_FixedColumns)
@@ -3175,6 +3175,7 @@ void VMenu::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, sm
 		column.CurrentWidth = std::clamp(column.CurrentWidth, short{}, column.TextSegment.length());
 	}
 	m_ItemTextSegment = ItemTextSegment;
+	m_ApiItemNameFormatter = std::move(Formatter);
 }
 
 void VMenu::ResizeConsole()
@@ -3373,7 +3374,7 @@ bool VMenu::GetVMenuInfo(FarListInfo* Info) const
 }
 
 // Функция GetItemPtr - получить указатель на нужный Items.
-MenuItemEx& VMenu::at(size_t n)
+MenuItemEx& VMenu::atXXX(size_t n)
 {
 	const auto ItemPos = GetItemPosition(static_cast<int>(n));
 
@@ -3581,6 +3582,11 @@ int VMenu::GetItemVisualLength(const MenuItemEx& Item) const
 string_view VMenu::GetItemText(const MenuItemEx& Item) const
 {
 	return get_item_cell_text(Item.Name, m_ItemTextSegment);
+}
+
+string VMenu::GetItemNameForApi(const MenuItemEx& Item) const
+{
+	return m_ApiItemNameFormatter ? m_ApiItemNameFormatter(Item, m_FixedColumns, m_ItemTextSegment) : Item.Name;
 }
 
 size_t VMenu::Text(string_view const Str) const

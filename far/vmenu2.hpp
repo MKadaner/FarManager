@@ -50,6 +50,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 struct menu_item;
 struct MenuItemEx;
 struct vmenu_fixed_column_t;
+using vmenu_api_item_name_formatter =
+	std::move_only_function<string(const MenuItemEx& Item, const std::vector<vmenu_fixed_column_t>& FixedColumns, small_segment ItemTextSegment) const>;
 struct SortItemParam;
 
 class VMenu2 final: public Dialog
@@ -72,7 +74,7 @@ public:
 	void SetBottomTitle(const string& Title);
 	void SetBoxType(int BoxType);
 	void SetMenuFlags(DWORD Flags);
-	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment);
+	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment, vmenu_api_item_name_formatter&& Formatter);
 	void EnableAutoHighlight(bool Reverse = false);
 	void clear();
 	int DeleteItem(int ID,int Count=1);

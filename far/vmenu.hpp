@@ -162,6 +162,9 @@ struct vmenu_fixed_column_t
 	wchar_t Separator;
 };
 
+using vmenu_api_item_name_formatter =
+	std::move_only_function<string(const MenuItemEx& Item, const std::vector<vmenu_fixed_column_t>& FixedColumns, small_segment ItemTextSegment) const>;
+
 struct SortItemParam
 {
 	bool Reverse;
@@ -199,7 +202,7 @@ public:
 	void SetDialogStyle(bool Style) { ChangeFlags(VMENU_WARNDIALOG, Style); SetColors(nullptr); }
 	void SetUpdateRequired(bool SetUpdate) { ChangeFlags(VMENU_UPDATEREQUIRED, SetUpdate); }
 	void SetMenuFlags(DWORD Flags) { VMFlags.Set(Flags); }
-	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment);
+	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment, vmenu_api_item_name_formatter&& Formatter);
 	void ClearFlags(DWORD Flags) { VMFlags.Clear(Flags); }
 	bool CheckFlags(DWORD Flags) const { return VMFlags.Check(Flags); }
 	DWORD GetFlags() const { return VMFlags.Flags(); }
@@ -250,8 +253,8 @@ public:
 	void ClearCheck(int Position = -1);
 	bool UpdateRequired() const;
 	void UpdateItemFlags(int Pos, unsigned long long NewFlags);
-	MenuItemEx& at(size_t n);
-	MenuItemEx& current() { return at(-1); }
+	MenuItemEx& atXXX(size_t n);
+	MenuItemEx& currentXXX() { return atXXX(-1); }
 	bool Pack();
 	bool GetVMenuInfo(FarListInfo* Info) const;
 	void SetMaxHeight(int NewMaxHeight);
@@ -314,12 +317,13 @@ private:
 	[[nodiscard]] int GetItemVisualLength(const MenuItemEx& Item) const; // Intersected with m_ItemTextSegment
 	[[nodiscard]] string_view GetItemText(const MenuItemEx& Item) const; // Intersected with m_ItemTextSegment
 
+	[[nodiscard]] string GetItemNameForApi(const MenuItemEx& Item) const;
 
 	int GetItemPosition(int Position) const;
 	bool CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos, int& NewPos);
-	int CheckHighlights(wchar_t CheckSymbol,int StartPos=0) const;
+	int CheckHighlightsForApi(wchar_t CheckSymbol,int StartPos=0) const;
 	void AssignHighlights(const menu_layout& Layout);
-	wchar_t GetHighlights(const MenuItemEx *Item) const;
+	wchar_t GetHighlightsForApi(const MenuItemEx *Item) const;
 
 	[[nodiscard]] bool SetItemHPos(MenuItemEx& Item, const auto& GetNewHPos);
 	[[nodiscard]] bool SetCurItemSmartHPos(int NewHPos);
@@ -350,6 +354,7 @@ private:
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
 	std::vector<vmenu_fixed_column_t> m_FixedColumns;
 	small_segment m_ItemTextSegment{ small_segment::ray() };
+	vmenu_api_item_name_formatter m_ApiItemNameFormatter;
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
 	size_t PrevCursorSize{};
