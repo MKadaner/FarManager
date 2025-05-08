@@ -127,8 +127,8 @@ public:
 	void SortItems(function_ref<bool(const MenuItemEx&, const MenuItemEx&, SortItemParam&)> Pred, bool Reverse = false, int Offset = 0);
 
 	void Pack();
-	MenuItemEx& at(size_t n);
-	MenuItemEx& current();
+	const MenuItemEx& at(size_t n);
+	const MenuItemEx& current();
 	int GetShowItemCount() const;
 
 private:

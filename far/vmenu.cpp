@@ -3374,7 +3374,7 @@ bool VMenu::GetVMenuInfo(FarListInfo* Info) const
 }
 
 // Функция GetItemPtr - получить указатель на нужный Items.
-MenuItemEx& VMenu::atXXX(size_t n)
+const MenuItemEx& VMenu::atXXX(size_t n) const
 {
 	const auto ItemPos = GetItemPosition(static_cast<int>(n));
 

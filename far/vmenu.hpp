@@ -253,8 +253,8 @@ public:
 	void ClearCheck(int Position = -1);
 	bool UpdateRequired() const;
 	void UpdateItemFlags(int Pos, unsigned long long NewFlags);
-	MenuItemEx& atXXX(size_t n);
-	MenuItemEx& currentXXX() { return atXXX(-1); }
+	const MenuItemEx& atXXX(size_t n) const;
+	const MenuItemEx& currentXXX() const { return atXXX(-1); }
 	bool Pack();
 	bool GetVMenuInfo(FarListInfo* Info) const;
 	void SetMaxHeight(int NewMaxHeight);
@@ -283,6 +283,11 @@ public:
 	static bool ClickHandler(window* Menu, int MenuClick);
 
 	[[nodiscard]] int GetNaturalMenuWidth() const;
+	[[nodiscard]] string GetItemNameForApi(const MenuItemEx& Item) const;
+	[[nodiscard]] string GetItemNameForApi(const int Position) const
+	{
+		return GetItemNameForApi(atXXX(Position));
+	}
 
 private:
 	friend struct menu_layout;
@@ -316,8 +321,6 @@ private:
 	[[nodiscard]] int CalculateTextAreaWidth() const;
 	[[nodiscard]] int GetItemVisualLength(const MenuItemEx& Item) const; // Intersected with m_ItemTextSegment
 	[[nodiscard]] string_view GetItemText(const MenuItemEx& Item) const; // Intersected with m_ItemTextSegment
-
-	[[nodiscard]] string GetItemNameForApi(const MenuItemEx& Item) const;
 
 	int GetItemPosition(int Position) const;
 	bool CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos, int& NewPos);

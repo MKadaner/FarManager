@@ -61,12 +61,12 @@ void VMenu2::Pack()
 	ListBox().Pack();
 }
 
-MenuItemEx& VMenu2::at(size_t n)
+const MenuItemEx& VMenu2::at(size_t n)
 {
 	return ListBox().atXXX(n);
 }
 
-MenuItemEx& VMenu2::current()
+const MenuItemEx& VMenu2::current()
 {
 	return ListBox().currentXXX();
 }

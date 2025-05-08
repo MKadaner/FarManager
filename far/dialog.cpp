@@ -214,7 +214,7 @@ static size_t ConvertItemEx2(const DialogItemEx& ItemEx, FarGetDialogItem *Item,
 			size+=ListBoxSize*sizeof(FarListItem);
 			for (const auto i: std::views::iota(0uz, ListBoxSize))
 			{
-				size += (ListBox->at(i).Name.size() + 1) * sizeof(wchar_t);
+				size += (ListBox->GetItemNameForApi(static_cast<int>(i)).size() + 1) * sizeof(wchar_t);
 			}
 		}
 	}
@@ -243,10 +243,10 @@ static size_t ConvertItemEx2(const DialogItemEx& ItemEx, FarGetDialogItem *Item,
 
 					for (const auto ii: std::views::iota(0uz, ListBoxSize))
 					{
-						auto& item = ListBox->at(ii);
+						auto& item = ListBox->atXXX(ii);
 						listItems[ii].Flags = item.Flags;
 						listItems[ii].Text = text;
-						text += item.Name.copy(text, item.Name.npos);
+						text += ListBox->GetItemNameForApi(item).copy(text, string::npos);
 						*text++ = {};
 						listItems[ii].UserData = item.SimpleUserData;
 						listItems[ii].Reserved = 0;
@@ -3888,7 +3888,7 @@ int Dialog::SelectFromComboBox(DialogItemEx& CurItem, DlgEdit& EditLine)
 			return KEY_ESC;
 		}
 
-		const auto& ItemPtr = ComboBox->at(Dest);
+		const auto& ItemPtr = ComboBox->atXXX(Dest);
 
 		if (CurItem.Flags & (DIF_DROPDOWNLIST|DIF_LISTNOAMPERSAND))
 		{
@@ -4875,12 +4875,12 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 
 							if (static_cast<size_t>(ListItems->ItemIndex) < ListBox->size())
 							{
-								const auto& ListMenuItem = ListBox->at(ListItems->ItemIndex);
+								const auto& ListMenuItem = ListBox->atXXX(ListItems->ItemIndex);
 								//ListItems->ItemIndex=1;
 								auto& Item = ListItems->Item;
 								Item = {};
 								Item.Flags=ListMenuItem.Flags;
-								Item.Text=ListMenuItem.Name.c_str();
+								Item.Text=ListMenuItem.Name.c_str(); // Should we call ListBox->GetItemNameForApi?
 								Item.UserData = ListMenuItem.SimpleUserData;
 								Item.Reserved = 0;
 
@@ -5024,7 +5024,7 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 					{
 						if (ListBox->HasVisible())
 						{
-							const auto& ListMenuItem = ListBox->at(ListBox->GetSelectPos());
+							const auto& ListMenuItem = ListBox->atXXX(ListBox->GetSelectPos());
 							const auto Edit = static_cast<DlgEdit*>(CurItem.ObjPtr);
 							if (CurItem.Flags & (DIF_DROPDOWNLIST|DIF_LISTNOAMPERSAND))
 								Edit->SetHiString(ListMenuItem.Name);
@@ -5447,21 +5447,23 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 		case DM_GETTEXT:
 		{
 			const auto did = static_cast<FarDialogItemData*>(Param2);
-			const auto InitItemData = [did, &Ptr, &Len]
-			{
-				if (!did->PtrLength)
-					did->PtrLength=Len; //BUGBUG: PtrLength размер переданного нам буфера, зачем мы его меняем?
-				else if (Len > did->PtrLength)
-					Len=did->PtrLength;
-
-				if (did->PtrData)
-				{
-					std::copy_n(Ptr, Len, did->PtrData);
-					did->PtrData[Len] = {};
-				}
-			};
 			if (CheckStructSize(did)) // если здесь nullptr, то это еще один способ получить размер
 			{
+				const auto InitItemData = [did, &Ptr, &Len]
+				{
+					if (!did->PtrLength)
+						did->PtrLength=Len; //BUGBUG: PtrLength размер переданного нам буфера, зачем мы его меняем?
+											// Maybe it's the way to retrieve the length (assuming that in this case PtrData is always nullptr)?
+					else if (Len > did->PtrLength)
+						Len=did->PtrLength;
+
+					if (did->PtrData)
+					{
+						std::copy_n(Ptr, Len, did->PtrData);
+						did->PtrData[Len] = {};
+					}
+				};
+
 				Len=0;
 
 				switch (Type)
@@ -5511,11 +5513,14 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 						break;
 					case DI_LISTBOX:
 					{
+						string ItemNameForApi;
 						if (CurItem.ListPtr->GetShowItemCount())
 						{
-							const auto& ListMenuItem = CurItem.ListPtr->current();
-							Ptr = ListMenuItem.Name.data();
-							Len = ListMenuItem.Name.size();
+							const auto& ListMenuItem = CurItem.ListPtr->currentXXX();
+							ItemNameForApi = CurItem.ListPtr->GetItemNameForApi(ListMenuItem);
+							// InitItemData() will copy the data
+							Ptr = ItemNameForApi.data();
+							Len = ItemNameForApi.size();
 						}
 						InitItemData();
 						break;
@@ -5564,7 +5569,7 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 					Len=0;
 					if (CurItem.ListPtr->GetShowItemCount())
 					{
-						Len = CurItem.ListPtr->current().Name.size();
+						Len = CurItem.ListPtr->GetItemNameForApi(CurItem.ListPtr->currentXXX()).size();
 					}
 					break;
 
@@ -5672,7 +5677,7 @@ intptr_t Dialog::SendMessage(intptr_t Msg,intptr_t Param1,void* Param2)
 						{
 							FarListUpdate LUpdate{ sizeof(LUpdate) };
 							LUpdate.Index=ListBox->GetSelectPos();
-							auto& ListMenuItem = ListBox->at(LUpdate.Index);
+							const auto& ListMenuItem = ListBox->atXXX(LUpdate.Index);
 							LUpdate.Item.Flags = ListMenuItem.Flags;
 							LUpdate.Item.Text = CurItem.strData.c_str();
 							LUpdate.Item.UserData = ListMenuItem.SimpleUserData;
