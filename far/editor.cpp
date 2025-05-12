@@ -3919,6 +3919,21 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 					FindAllList->toggle_zoom();
 					break;
 
+				case KEY_F3:
+				{
+					const auto ShellEditor = FileEditor::create(L"Filtered", CP_DEFAULT, FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6);
+					const auto Editor = ShellEditor->GetEditor();
+					Editor->Paste(L"Sample");
+					Editor->SetCurPos(0, 0);
+					Editor->UnmarkBlock();
+					FindAllList->m_Menu->Close();
+					ShellEditor->Show();
+					Global->WindowManager->ActivateWindow(ShellEditor);
+					FindAllList->m_Menu->Close();
+					KeyProcessed = 0;
+					break;
+				}
+
 				default:
 					if ((Key>=KEY_CTRL0 && Key<=KEY_CTRL9) || (Key>=KEY_RCTRL0 && Key<=KEY_RCTRL9) ||
 					   (Key>=KEY_CTRLSHIFT0 && Key<=KEY_CTRLSHIFT9) || (Key>=KEY_RCTRLSHIFT0 && Key<=KEY_RCTRLSHIFT9))

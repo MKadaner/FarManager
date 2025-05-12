@@ -1084,6 +1084,21 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 			case KEY_SHIFTF2:
 				return SaveAction(LocalKey == KEY_SHIFTF2);
 
+			//case KEY_F3:
+			//{
+			//	if (!Global->OnlyEditorViewerUsed && GetCanLoseFocus())
+			//	{
+			//		const auto CurrentWindow{ Global->WindowManager->GetCurrentWindow() };
+			//		const auto Id{ CurrentWindow->ID() };
+			//		//const auto ShellEditor = FileEditor::create(L"Filtered", CP_DEFAULT, FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6);
+			//		//const auto Editor = ShellEditor->GetEditor();
+			//		//Editor->Paste(L"Sample");
+			//		//Editor->SetCurPos(0, 0);
+			//		//Editor->UnmarkBlock();
+			//	}
+			//	return true;
+			//}
+
 			// $ 30.05.2003 SVS - Shift-F4 в редакторе/вьювере позволяет открывать другой редактор/вьювер (пока только редактор)
 			case KEY_SHIFTF4:
 			{
