@@ -56,6 +56,7 @@ class FileEditor;
 class KeyBar;
 class Edit;
 struct ColorItem;
+class VMenu2;
 
 class Editor final: public SimpleScreenObject
 {
@@ -320,6 +321,8 @@ private:
 	void DeleteColor(numbered_iterator const& It, delete_color_condition Condition);
 	bool GetColor(numbered_iterator const& It, ColorItem& Item, size_t Index) const;
 	std::multiset<ColorItem> const* GetColors(Edit* It) const;
+	void SaveFoundItemsToNewEditor(const VMenu2& Menu) const;
+
 	// Младший байт (маска 0xFF) юзается классом ScreenObject!!!
 	enum editor_flags
 	{

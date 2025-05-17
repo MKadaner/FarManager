@@ -3920,19 +3920,9 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 					break;
 
 				case KEY_F3:
-				{
-					const auto ShellEditor = FileEditor::create(L"Filtered", CP_DEFAULT, FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6);
-					const auto Editor = ShellEditor->GetEditor();
-					Editor->Paste(L"Sample");
-					Editor->SetCurPos(0, 0);
-					Editor->UnmarkBlock();
+					m_WillSaveItems = true;
 					FindAllList->m_Menu->Close();
-					ShellEditor->Show();
-					Global->WindowManager->ActivateWindow(ShellEditor);
-					FindAllList->m_Menu->Close();
-					KeyProcessed = 0;
 					break;
-				}
 
 				default:
 					if ((Key>=KEY_CTRL0 && Key<=KEY_CTRL9) || (Key>=KEY_RCTRL0 && Key<=KEY_RCTRL9) ||
@@ -3956,6 +3946,12 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 		if(ExitCode >= 0)
 		{
+			if (FindAllList->save_items())
+			{
+				SaveFoundItemsToNewEditor(*FindAllList->m_Menu);
+				return;
+			}
+
 			const auto& coord = *FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(ExitCode);
 			GoToLine(coord.Line);
 			m_it_CurLine->SetCurPos(coord.Pos);
@@ -3983,6 +3979,15 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 				QuotedStr
 			},
 			{ lng::MOk });
+}
+
+void Editor::SaveFoundItemsToNewEditor(const VMenu2& Menu) const
+{
+	const auto ShellEditor = FileEditor::create(L"Filtered", CP_DEFAULT, FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6);
+	const auto Editor = ShellEditor->GetEditor();
+	Editor->Paste(L"Sample");
+	Editor->SetCurPos(0, 0);
+	Editor->UnmarkBlock();
 }
 
 void Editor::PasteFromClipboard()
