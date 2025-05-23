@@ -3441,7 +3441,7 @@ namespace
 			m_Menu->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND | VMENU_ENABLEALIGNANNOTATIONS);
 			m_Menu->SetPosition({ -1, m_MenuY1, 0, m_MenuY2 });
 			m_Menu->SetTitle(far::vformat(msg(lng::MEditSearchStatistics), m_Menu->size(), m_UniqueLineCount));
-			m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F2, KEY_SHIFTF2, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
+			m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F4, KEY_ALTF4, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
 			m_Menu->SetHelp(L"FindAllMenu"sv);
 			m_Menu->SetId(EditorFindAllListId);
 
@@ -3922,7 +3922,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 					}
 					break;
 
-				case KEY_F2:
+				case KEY_F4:
 					if (!FindAllList->m_Menu->ListBox().empty())
 					{
 						SaveToNewEditor = save_to_new_editor::all;
@@ -3930,7 +3930,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 					}
 					break;
 
-				case KEY_SHIFTF2:
+				case KEY_ALTF4:
 					if (FindAllList->m_Menu->ListBox().HasVisible())
 					{
 						SaveToNewEditor = save_to_new_editor::matching_filter;
@@ -4001,7 +4001,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter)
 {
-	const auto ShellEditor{ FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6) };
+	const auto ShellEditor{ FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_SAVETOSAVEAS/* | FFILEEDIT_ENABLEF6*/) };
 	const auto NewEditor{ ShellEditor->GetEditor() };
 	const auto FilterFlags{ LIF_HIDDEN | (MatchingFilter ? LIF_FILTERED : 0) };
 
@@ -4013,8 +4013,7 @@ void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool Matching
 		| chunk_by(std::ranges::equal_to{})
 		| transform([](auto&& chunk) { return chunk.front(); }))
 	{
-		NewEditor->InsertString(GetStringByNumber(I)->GetString(), NewEditor->LastLine());
-		NewEditor->TextChanged(true);
+		NewEditor->InsertString(GetStringByNumber(I)->GetString(), NewEditor->LastLine())->SetEOL(GlobalEOL);
 	}
 
 	NewEditor->SetCurPos(0, 0);

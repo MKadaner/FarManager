@@ -3436,10 +3436,10 @@ jest zgodna z odnalezionym ciągiem. Na przykład:
 $ #Edytor: menu wszystkich znalezionych wystąpień#
  Następujące kombinacje klawiszy są dostępne w tym menu:
 
- #F2#
+ #F4#
  Copy all found lines into a new editor and close this menu.
 
- #Shift+F2#
+ #Alt+F4#
  Copy all lines matching the current filter into a new editor and close this menu.
 
  #F5#

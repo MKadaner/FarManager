@@ -3468,10 +3468,10 @@ string is changed to that of the found string. For example:
 $ #Editor: All matching entries menu#
  The following key combinations are available in this menu:
 
- #F2#
+ #F4#
  Copy all found lines into a new editor and close this menu.
 
- #Shift+F2#
+ #Alt+F4#
  Copy all lines matching the current filter into a new editor and close this menu.
 
  #F5#
