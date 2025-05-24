@@ -92,6 +92,7 @@ public:
 	explicit FileEditor(private_tag);
 	~FileEditor() override;
 
+	bool GetCanLoseFocus(bool DynamicMode = false) const override;
 	bool IsFileModified() const override { return m_editor->IsModified(); }
 	int GetTypeAndName(string &strType, string &strName) override;
 	long long VMProcess(int OpCode, void* vParam = nullptr, long long iParam = 0) override;
@@ -128,7 +129,6 @@ private:
 	void SetScreenPosition() override;
 	int GetType() const override { return windowtype_editor; }
 	void OnDestroy() override;
-	bool GetCanLoseFocus(bool DynamicMode = false) const override;
 	bool CanFastHide() const override; // для нужд CtrlAltShift
 	string GetTitle() const override;
 	bool IsKeyBarVisible() const override;

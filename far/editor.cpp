@@ -3411,8 +3411,9 @@ namespace
 	class find_all_list
 	{
 	public:
-		explicit find_all_list(int MaxLinesCount)
-			: m_LineNumColumnMaxWidth{ radix10_formatted_width(MaxLinesCount) }
+		explicit find_all_list(const size_t MaxLinesCount, const bool CanSaveFoundItemsToNewEditor)
+			: m_CanSaveFoundItemsToNewEditor{ CanSaveFoundItemsToNewEditor }
+			, m_LineNumColumnMaxWidth{ radix10_formatted_width(MaxLinesCount) }
 		{}
 
 		void add_item(FindCoord FoundCoords, string_view ItemText)
@@ -3441,7 +3442,10 @@ namespace
 			m_Menu->SetMenuFlags(VMENU_WRAPMODE | VMENU_SHOWAMPERSAND | VMENU_ENABLEALIGNANNOTATIONS);
 			m_Menu->SetPosition({ -1, m_MenuY1, 0, m_MenuY2 });
 			m_Menu->SetTitle(far::vformat(msg(lng::MEditSearchStatistics), m_Menu->size(), m_UniqueLineCount));
-			m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F4, KEY_ALTF4, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
+			if (m_CanSaveFoundItemsToNewEditor)
+				m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F4, KEY_ALTF4, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
+			else
+				m_Menu->SetBottomTitle(KeysToLocalizedText(KEY_CTRLENTER, KEY_F5, KEY_SHIFTF5, KEY_ADD, KEY_CTRLUP, KEY_CTRLDOWN));
 			m_Menu->SetHelp(L"FindAllMenu"sv);
 			m_Menu->SetId(EditorFindAllListId);
 
@@ -3481,6 +3485,7 @@ namespace
 		}
 
 		const vmenu2_ptr m_Menu{ VMenu2::create({}, {}) };
+		const bool m_CanSaveFoundItemsToNewEditor{};
 
 	private:
 		const short m_LineNumColumnMaxWidth{};
@@ -3509,7 +3514,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 	bool MatchFound{}, UserBreak{};
 	std::optional<undo_block> UndoBlock;
 	string QuotedStr;
-	auto FindAllList{ FindAll ? std::optional<find_all_list>{ Lines.size() } : std::nullopt };
+	auto FindAllList{ FindAll ? std::optional{ find_all_list{ Lines.size(), CanSaveFoundItemsToNewEditor() } } : std::nullopt };
 
 	{
 		HideCursor();
@@ -3923,15 +3928,15 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 					break;
 
 				case KEY_F4:
-					if (!FindAllList->m_Menu->ListBox().empty())
+					if (FindAllList->m_CanSaveFoundItemsToNewEditor && !FindAllList->m_Menu->ListBox().empty())
 					{
 						SaveToNewEditor = save_to_new_editor::all;
 						FindAllList->m_Menu->Close();
 					}
 					break;
 
-				case KEY_ALTF4:
-					if (FindAllList->m_Menu->ListBox().HasVisible())
+				case KEY_ALTF4: case KEY_RALTF4:
+					if (FindAllList->m_CanSaveFoundItemsToNewEditor && FindAllList->m_Menu->ListBox().HasVisible())
 					{
 						SaveToNewEditor = save_to_new_editor::matching_filter;
 						FindAllList->m_Menu->Close();
@@ -3997,6 +4002,13 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 				QuotedStr
 			},
 			{ lng::MOk });
+}
+
+bool Editor::CanSaveFoundItemsToNewEditor() const
+{
+	const auto HostFileEditor = GetHostFileEditor();
+	if (!HostFileEditor) return false;
+	return HostFileEditor->GetCanLoseFocus();
 }
 
 void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter)
