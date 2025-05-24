@@ -4014,7 +4014,7 @@ bool Editor::CanSaveFoundItemsToNewEditor() const
 void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter)
 {
 	const auto ShellEditor{
-		FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | FFILEEDIT_DISABLEHISTORY) };
+		FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | FFILEEDIT_DISABLEHISTORY, 0, 0) };
 	ShellEditor->SetSaveToSaveAs(true);
 	const auto NewEditor{ ShellEditor->GetEditor() };
 	const auto FilterFlags{ LIF_HIDDEN | (MatchingFilter ? LIF_FILTERED : 0) };
@@ -4027,10 +4027,9 @@ void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool Matching
 		| chunk_by(std::ranges::equal_to{})
 		| transform([](auto&& chunk) { return chunk.front(); }))
 	{
-		NewEditor->InsertString(GetStringByNumber(I)->GetString(), NewEditor->LastLine())->SetEOL(GlobalEOL);
+		const auto CurString{ GetStringByNumber(I) };
+		NewEditor->InsertString(CurString->GetString(), NewEditor->LastLine())->SetEOL(CurString->GetEOL());
 	}
-
-	NewEditor->SetCurPos(0, 0);
 }
 
 string Editor::GetSearchAllFileName() const
