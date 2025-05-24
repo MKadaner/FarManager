@@ -4001,7 +4001,9 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter)
 {
-	const auto ShellEditor{ FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_SAVETOSAVEAS/* | FFILEEDIT_ENABLEF6*/) };
+	const auto ShellEditor{
+		FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | FFILEEDIT_DISABLEHISTORY) };
+	ShellEditor->SetSaveToSaveAs(true);
 	const auto NewEditor{ ShellEditor->GetEditor() };
 	const auto FilterFlags{ LIF_HIDDEN | (MatchingFilter ? LIF_FILTERED : 0) };
 
