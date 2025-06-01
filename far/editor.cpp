@@ -3969,7 +3969,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 		if (SaveToNewEditor != save_to_new_editor::none)
 		{
-			SaveFoundItemsToNewEditor(FindAllList->m_Menu->ListBox(), SaveToNewEditor == save_to_new_editor::matching_filter);
+			SaveFoundItemsToNewEditor(FindAllList->m_Menu->ListBox(), SaveToNewEditor == save_to_new_editor::matching_filter, ExitCode);
 			return;
 		}
 
@@ -4011,25 +4011,36 @@ bool Editor::CanSaveFoundItemsToNewEditor() const
 	return HostFileEditor->GetCanLoseFocus();
 }
 
-void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter)
+void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter, intptr_t const ExitCode)
 {
 	const auto ShellEditor{
-		FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | FFILEEDIT_DISABLEHISTORY, 0, 0) };
-	ShellEditor->SetSaveToSaveAs(true);
-	const auto NewEditor{ ShellEditor->GetEditor() };
+		FileEditor::create(GetSearchAllFileName(), GetCodePage(), FFILEEDIT_CANNEWFILE | FFILEEDIT_ENABLEF6 | FFILEEDIT_EPHEMERAL) };
+	auto& NewEditor{ *ShellEditor->GetEditor() };
 	const auto FilterFlags{ LIF_HIDDEN | (MatchingFilter ? LIF_FILTERED : 0) };
 
-	using namespace std::views;
+	const auto MaybeFindCoord{ ListBox.GetComplexUserDataPtr<const FindCoord>(ExitCode) };
+	const auto ThisEditorCurrentFoundLine{ MaybeFindCoord ? MaybeFindCoord->Line : -1 };
+	FindCoord NewEditorCurrentFoundCoord{ .Line = -1 };
 
-	for (const auto I : ListBox.GetItems()
-		| filter([FilterFlags](const auto& Item) { return !(Item.Flags & FilterFlags); })
-		| transform([](const auto& Item) { return std::any_cast<FindCoord>(Item.ComplexUserData).Line; })
-		| chunk_by(std::ranges::equal_to{})
-		| transform([](auto&& chunk) { return chunk.front(); }))
+	int ThisEditorLastLine = -1;
+	for (const auto& Item : ListBox.GetItems())
 	{
-		const auto CurString{ GetStringByNumber(I) };
-		NewEditor->InsertString(CurString->GetString(), NewEditor->LastLine())->SetEOL(CurString->GetEOL());
+		if (Item.Flags & FilterFlags) continue;
+
+		const auto ThisEditorCoord{ std::any_cast<FindCoord>(Item.ComplexUserData) };
+		if (ThisEditorCoord.Line == ThisEditorLastLine) continue;
+		ThisEditorLastLine = ThisEditorCoord.Line;
+
+		if (ThisEditorCoord.Line == ThisEditorCurrentFoundLine)
+			NewEditorCurrentFoundCoord = ThisEditorCoord;
+
+		const auto CurString{ GetStringByNumber(ThisEditorCoord.Line) };
+		const auto NewEditorLine{ NewEditor.InsertString(CurString->GetString(), NewEditor.LastLine()) };
+		NewEditorLine->SetEOL(CurString->GetEOL());
 	}
+
+	NewEditor.GoToLine(NewEditorCurrentFoundCoord.Line);
+	NewEditor.m_it_CurLine->SetCurPos(NewEditorCurrentFoundCoord.Pos);
 }
 
 string Editor::GetSearchAllFileName() const

@@ -289,7 +289,7 @@ private:
 	int CalculateSearchStartPosition(bool Continue, bool Backward, bool Regex) const;
 	int CalculateSearchNextPositionInTheLine(bool Backward, bool Regex) const;
 	bool CanSaveFoundItemsToNewEditor() const;
-	void SaveFoundItemsToNewEditor(const VMenu& ListBox, bool MatchingFilter);
+	void SaveFoundItemsToNewEditor(const VMenu& ListBox, bool MatchingFilter, intptr_t ExitCode);
 	string GetSearchAllFileName() const;
 
 	void UpdateIteratorAndKeepPos(numbered_iterator& Iter, const auto& Func);
