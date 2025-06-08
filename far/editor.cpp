@@ -3895,22 +3895,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 						if (SelectedPos == -1)
 							break;
 
-						const auto& coord = *FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(SelectedPos);
-						GoToLine(coord.Line);
-						m_it_CurLine->SetCurPos(coord.Pos);
-						if (EdOpt.SearchSelFound)
-						{
-							Pasting++;
-							// if (!EdOpt.PersistentBlocks)
-							UnmarkBlock();
-							BeginStreamMarking(m_it_CurLine);
-							m_it_CurLine->Select(coord.Pos, coord.Pos + coord.SearchLen);
-							Pasting--;
-						}
-						if (EdOpt.SearchCursorAtEnd)
-						{
-							m_it_CurLine->SetCurPos(coord.Pos + coord.SearchLen);
-						}
+						SelectFoundPattern(*FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(SelectedPos));
 						Refresh();
 					}
 					break;
@@ -3975,21 +3960,7 @@ void Editor::DoSearchReplace(const SearchReplaceDisposition Disposition)
 
 		if(ExitCode >= 0)
 		{
-			const auto& coord = *FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(ExitCode);
-			GoToLine(coord.Line);
-			m_it_CurLine->SetCurPos(coord.Pos);
-			if (EdOpt.SearchSelFound)
-			{
-				Pasting++;
-				UnmarkBlock();
-				BeginStreamMarking(m_it_CurLine);
-				m_it_CurLine->Select(coord.Pos, coord.Pos + coord.SearchLen);
-				Pasting--;
-			}
-			if (EdOpt.SearchCursorAtEnd)
-			{
-				m_it_CurLine->SetCurPos(coord.Pos + coord.SearchLen);
-			}
+			SelectFoundPattern(*FindAllList->m_Menu->GetComplexUserDataPtr<FindCoord>(ExitCode));
 			Show();
 		}
 	}
@@ -4011,6 +3982,25 @@ bool Editor::CanSaveFoundItemsToNewEditor() const
 	return HostFileEditor->GetCanLoseFocus();
 }
 
+void Editor::SelectFoundPattern(FindCoord coord)
+{
+	GoToLine(coord.Line);
+	m_it_CurLine->SetCurPos(coord.Pos);
+	if (EdOpt.SearchSelFound)
+	{
+		Pasting++;
+		// if (!EdOpt.PersistentBlocks)
+		UnmarkBlock();
+		BeginStreamMarking(m_it_CurLine);
+		m_it_CurLine->Select(coord.Pos, coord.Pos + coord.SearchLen);
+		Pasting--;
+	}
+	if (EdOpt.SearchCursorAtEnd)
+	{
+		m_it_CurLine->SetCurPos(coord.Pos + coord.SearchLen);
+	}
+}
+
 void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool MatchingFilter, intptr_t const ExitCode)
 {
 	const auto ShellEditor{
@@ -4018,29 +4008,40 @@ void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool Matching
 	auto& NewEditor{ *ShellEditor->GetEditor() };
 	const auto FilterFlags{ LIF_HIDDEN | (MatchingFilter ? LIF_FILTERED : 0) };
 
-	const auto MaybeFindCoord{ ListBox.GetComplexUserDataPtr<const FindCoord>(ExitCode) };
-	const auto ThisEditorCurrentFoundLine{ MaybeFindCoord ? MaybeFindCoord->Line : -1 };
-	FindCoord NewEditorCurrentFoundCoord{ .Line = -1 };
+	std::optional<FindCoord> NewEditorFoundCoord;
 
 	int ThisEditorLastLine = -1;
-	for (const auto& Item : ListBox.GetItems())
+	for (const auto& [Index, Item] : ListBox.GetItems() | std::views::enumerate)
 	{
 		if (Item.Flags & FilterFlags) continue;
 
 		const auto ThisEditorCoord{ std::any_cast<FindCoord>(Item.ComplexUserData) };
-		if (ThisEditorCoord.Line == ThisEditorLastLine) continue;
-		ThisEditorLastLine = ThisEditorCoord.Line;
 
-		if (ThisEditorCoord.Line == ThisEditorCurrentFoundLine)
-			NewEditorCurrentFoundCoord = ThisEditorCoord;
+		if (ThisEditorCoord.Line != ThisEditorLastLine)
+		{
+			ThisEditorLastLine = ThisEditorCoord.Line;
 
-		const auto CurString{ GetStringByNumber(ThisEditorCoord.Line) };
-		const auto NewEditorLine{ NewEditor.InsertString(CurString->GetString(), NewEditor.LastLine()) };
-		NewEditorLine->SetEOL(CurString->GetEOL());
+			const auto CurString{ GetStringByNumber(ThisEditorCoord.Line) };
+			const auto NewEditorLine{ NewEditor.InsertString(CurString->GetString(), NewEditor.LastLine()) };
+			NewEditorLine->SetEOL(CurString->GetEOL());
+		}
+
+		if (Index == ExitCode)
+		{
+			const auto CurrentFoundCoord{ *ListBox.GetComplexUserDataPtr<const FindCoord>(ExitCode) };
+			NewEditorFoundCoord =
+			{
+				.Line = std::prev(NewEditor.LastLine()).Number(),
+				.Pos = CurrentFoundCoord.Pos,
+				.SearchLen = CurrentFoundCoord.SearchLen
+			};
+		}
 	}
 
-	NewEditor.GoToLine(NewEditorCurrentFoundCoord.Line);
-	NewEditor.m_it_CurLine->SetCurPos(NewEditorCurrentFoundCoord.Pos);
+	if (NewEditorFoundCoord)
+		NewEditor.SelectFoundPattern(*NewEditorFoundCoord);
+	else
+		NewEditor.SetCurPos(0, 0);
 }
 
 string Editor::GetSearchAllFileName() const

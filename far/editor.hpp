@@ -55,6 +55,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class FileEditor;
 class KeyBar;
 class Edit;
+struct FindCoord;
 struct ColorItem;
 
 class Editor final: public SimpleScreenObject
@@ -289,6 +290,7 @@ private:
 	int CalculateSearchStartPosition(bool Continue, bool Backward, bool Regex) const;
 	int CalculateSearchNextPositionInTheLine(bool Backward, bool Regex) const;
 	bool CanSaveFoundItemsToNewEditor() const;
+	void SelectFoundPattern(FindCoord coord);
 	void SaveFoundItemsToNewEditor(const VMenu& ListBox, bool MatchingFilter, intptr_t ExitCode);
 	string GetSearchAllFileName() const;
 
