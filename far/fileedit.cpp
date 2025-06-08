@@ -1152,7 +1152,7 @@ bool FileEditor::ReProcessKey(const Manager::Key& Key, bool CalledFromControl)
 			case KEY_ESC:
 			case KEY_F10:
 			{
-				bool NeedSave = !m_Flags.Check(FFILEEDIT_EPHEMERAL) && m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED);
+				bool NeedSave = m_editor->m_Flags.Check(Editor::FEDITOR_MODIFIED);
 				bool ConfirmSave = true;
 
 				if (!m_Flags.Check(FFILEEDIT_NEW) && !os::fs::is_file(strFullFileName))
@@ -1933,10 +1933,8 @@ bool FileEditor::SaveAction(bool const SaveAsIntention)
 			strSaveAsName = unquote(os::env::expand(strSaveAsName));
 			strFullSaveAsName = ConvertNameToFull(strSaveAsName);
 
-			if (!equal_icase(strFullSaveAsName, strFullFileName) && os::fs::exists(strFullSaveAsName) && !AskOverwrite(strSaveAsName))
-			{
+			if (DoNotOverwrite(strFullSaveAsName, strSaveAsName))
 				return false;
-			}
 		}
 
 		error_state_ex ErrorState;
@@ -2484,7 +2482,7 @@ intptr_t FileEditor::EditorControl(int Command, intptr_t Param1, void *Param2)
 					Codepage = esf->CodePage;
 			}
 
-			if (!equal_icase(strName, strFullFileName) && os::fs::exists(strName) && !AskOverwrite(PointToName(strName)))
+			if (DoNotOverwrite(strName, PointToName(strName)))
 				return FALSE;
 
 			//всегда записываем в режиме save as - иначе не сменить кодировку и концы линий.
@@ -2672,17 +2670,23 @@ bool FileEditor::SetCodePage(uintptr_t codepage)
 	return true;
 }
 
-bool FileEditor::AskOverwrite(const string_view FileName)
+bool FileEditor::DoNotOverwrite(const string_view FullSaveAsName, const string_view SaveAsName)
 {
+	if (!m_Flags.Check(FFILEEDIT_EPHEMERAL) && equal_icase(FullSaveAsName, strFullFileName))
+		return false;
+
+	if (!os::fs::exists(FullSaveAsName))
+		return false;
+
 	return Message(MSG_WARNING,
 		msg(lng::MEditTitle),
 		{
-			string(FileName),
+			string(SaveAsName),
 			msg(lng::MEditExists),
 			msg(lng::MEditOvr)
 		},
 		{ lng::MYes, lng::MNo },
-		{}, &EditorAskOverwriteId) == message_result::first_button;
+		{}, &EditorAskOverwriteId) != message_result::first_button;
 }
 
 uintptr_t FileEditor::GetDefaultCodePage()

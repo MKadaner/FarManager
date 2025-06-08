@@ -143,7 +143,7 @@ private:
 	*/
 	void SetDeleteOnClose(int NewMode);
 	bool ReProcessKey(const Manager::Key& Key, bool CalledFromControl = true);
-	bool AskOverwrite(string_view FileName);
+	bool DoNotOverwrite(string_view FullSaveAsName, string_view SaveAsName);
 	void Init(string_view Name, uintptr_t codepage, const string* Title, int StartLine, int StartChar, const string* PluginData, int DeleteOnClose, const window_ptr& Update, EDITOR_FLAGS OpenModeExstFile);
 	bool LoadFile(string_view Name, int &UserBreak, error_state_ex& ErrorState);
 	bool ReloadFile(uintptr_t codepage);
