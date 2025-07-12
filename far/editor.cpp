@@ -4047,16 +4047,20 @@ void Editor::SaveFoundItemsToNewEditor(const VMenu& ListBox, const bool Matching
 
 string Editor::GetSearchAllFileName() const
 {
-	auto SearchAllFileName{ msg(lng::MEditSearchAllFileNameAppend) };
-
 	const auto HostFileEditor = GetHostFileEditor();
-	if (!HostFileEditor) return SearchAllFileName;
+	if (!HostFileEditor)
+		return far::vformat(msg(lng::MEditSearchAllFileNameFormat), string_view{}, string_view{});
 
 	string HostType, HostName;
 	HostFileEditor->GetTypeAndName(HostType, HostName);
 
 	const auto NameAndExt{ name_ext(HostName) };
-	return NameAndExt.first + SearchAllFileName + NameAndExt.second;
+
+	const auto format{ contains(EdOpt.SearchAllUseAltFileNameFormat.Get(), NameAndExt.second)
+		? msg(lng::MEditSearchAllFileNameFormatAlt)
+		: msg(lng::MEditSearchAllFileNameFormat) };
+
+	return far::vformat(format, NameAndExt.first, NameAndExt.second);
 }
 
 void Editor::PasteFromClipboard()

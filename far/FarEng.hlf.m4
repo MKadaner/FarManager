@@ -6589,6 +6589,10 @@ by the Editor.
  This parameter can be changed via ~far:config~@FarConfig@ only.
 
 
+@Editor.SearchAllUseAltFileNameFormat
+$ #far:config Editor.SearchAllUseAltFileNameFormat#
+
+
 @Panel.ShortcutAlwaysChdir
 $ #far:config Panel.ShortcutAlwaysChdir#
  This Boolean parameter controls the behavior of
