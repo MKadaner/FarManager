@@ -613,14 +613,14 @@ namespace
 		return -adjust_hpos_shift(-Shift, TextAreaWidth - Right, TextAreaWidth - Left, TextAreaWidth);
 	}
 
-	void toggle_fixed_columns(std::vector<vmenu_fixed_column_t>& FixedColumns)
+	void toggle_fixed_columns(std::vector<VMenu::fixed_column_t>& FixedColumns)
 	{
 		assert(!FixedColumns.empty());
 
-		if (auto firstHiddenColumn{ std::ranges::find(FixedColumns, 0, &vmenu_fixed_column_t::CurrentWidth) };
+		if (auto firstHiddenColumn{ std::ranges::find(FixedColumns, 0, &VMenu::fixed_column_t::CurrentWidth) };
 			firstHiddenColumn != FixedColumns.end())
 		{
-			firstHiddenColumn->CurrentWidth = firstHiddenColumn->TextSegment.length();
+			firstHiddenColumn->CurrentWidth = firstHiddenColumn->MaxWidth;
 			return;
 		}
 
@@ -3189,16 +3189,6 @@ void VMenu::SetTitle(string_view const Title)
 	strTitle = Title;
 }
 
-void VMenu::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, small_segment ItemTextSegment)
-{
-	m_FixedColumns = std::move(FixedColumns);
-	for (auto& column : m_FixedColumns)
-	{
-		column.CurrentWidth = std::clamp(column.CurrentWidth, short{}, column.TextSegment.length());
-	}
-	m_ItemTextSegment = ItemTextSegment;
-}
-
 void VMenu::ResizeConsole()
 {
 	if (SaveScr)
@@ -3432,6 +3422,16 @@ std::any* VMenu::GetComplexUserData(int Position)
 		return nullptr;
 
 	return &Items[ItemPos].ComplexUserData;
+}
+
+void VMenu::RegisterFixedColumns(std::vector<fixed_column_t>&& FixedColumns, fixed_column_provider&& FixedColumnProvider)
+{
+	m_FixedColumns = std::move(FixedColumns);
+	for (auto& column : m_FixedColumns)
+	{
+		column.CurrentWidth = std::clamp(column.CurrentWidth, short{}, column.MaxWidth);
+	}
+	m_FixedColumnProvider = std::move(FixedColumnProvider);
 }
 
 void VMenu::RegisterExtendedDataProvider(extended_item_data_provider&& ExtendedDataProvider)
