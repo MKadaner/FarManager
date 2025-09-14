@@ -244,7 +244,7 @@ public:
 		short CurrentWidth;
 		wchar_t Separator;
 	};
-	using fixed_column_provider = std::function<void(const menu_item_ex&, fixed_column_t, string&)>;
+	using fixed_column_provider = std::function<string(const menu_item_ex&, fixed_column_t)>;
 	void RegisterFixedColumns(std::vector<fixed_column_t>&& FixedColumns, fixed_column_provider&& FixedColumnProvider);
 
 	using extended_item_data = std::vector<std::pair<FarMacroValue, FarMacroValue>>;
@@ -362,7 +362,7 @@ private:
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
 	std::vector<fixed_column_t> m_FixedColumns;
 	fixed_column_provider m_FixedColumnProvider;
-	small_segment m_ItemTextSegment{ small_segment::ray() };
+	small_segment m_ItemTextSegment{ small_segment::ray() }; // TBD!!! Remove?
 	extended_item_data_provider m_ExtendedDataProvider;
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
