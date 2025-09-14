@@ -613,14 +613,14 @@ namespace
 		return -adjust_hpos_shift(-Shift, TextAreaWidth - Right, TextAreaWidth - Left, TextAreaWidth);
 	}
 
-	void toggle_fixed_columns(std::vector<vmenu_fixed_column_t>& FixedColumns)
+	void toggle_fixed_columns(std::vector<VMenu::fixed_column_t>& FixedColumns)
 	{
 		assert(!FixedColumns.empty());
 
-		if (auto firstHiddenColumn{ std::ranges::find(FixedColumns, 0, &vmenu_fixed_column_t::CurrentWidth) };
+		if (auto firstHiddenColumn{ std::ranges::find(FixedColumns, 0, &VMenu::fixed_column_t::CurrentWidth) };
 			firstHiddenColumn != FixedColumns.end())
 		{
-			firstHiddenColumn->CurrentWidth = firstHiddenColumn->TextSegment.length();
+			firstHiddenColumn->CurrentWidth = firstHiddenColumn->MaxWidth;
 			return;
 		}
 
@@ -2910,11 +2910,11 @@ void VMenu::DrawFixedColumns(
 	set_color(Colors, ColorIndices.Normal);
 
 	auto CurCellAreaStart{ FixedColumnsArea.start() };
-	for (const auto CurFixedColumn : m_FixedColumns | std::views::filter(&vmenu_fixed_column_t::CurrentWidth))
+	for (const auto CurFixedColumn : m_FixedColumns | std::views::filter(&VMenu::fixed_column_t::CurrentWidth))
 	{
 		const segment CellArea{ CurCellAreaStart, segment::length_tag{ CurFixedColumn.CurrentWidth } };
 
-		const auto CellText{ get_item_cell_text(Item.Name, CurFixedColumn.TextSegment) };
+		const auto CellText{ m_FixedColumnProvider(Item, CurFixedColumn) };
 		const auto VisibleCellTextSegment{ intersect(
 			segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(CellText.size()) } },
 			segment{ 0, segment::length_tag{ CellArea.length()}})};
@@ -3182,16 +3182,6 @@ void VMenu::SetTitle(string_view const Title)
 	strTitle = Title;
 }
 
-void VMenu::SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, segment ItemTextSegment)
-{
-	m_FixedColumns = std::move(FixedColumns);
-	for (auto& column : m_FixedColumns)
-	{
-		column.CurrentWidth = std::clamp(column.CurrentWidth, int{}, column.TextSegment.length());
-	}
-	m_ItemTextSegment = ItemTextSegment;
-}
-
 void VMenu::ResizeConsole()
 {
 	if (SaveScr)
@@ -3425,6 +3415,20 @@ std::any* VMenu::GetComplexUserData(int Position)
 		return nullptr;
 
 	return &Items[ItemPos].ComplexUserData;
+}
+
+void VMenu::RegisterFixedColumnsProvider(
+	std::vector<fixed_column_t>&& FixedColumns,
+	fixed_column_provider&& FixedColumnProvider,
+	segment ItemTextSegment)
+{
+	m_FixedColumns = std::move(FixedColumns);
+	for (auto& column : m_FixedColumns)
+	{
+		column.CurrentWidth = std::clamp(column.CurrentWidth, int{}, column.MaxWidth);
+	}
+	m_FixedColumnProvider = std::move(FixedColumnProvider);
+	m_ItemTextSegment = ItemTextSegment;
 }
 
 void VMenu::RegisterExtendedDataProvider(extended_item_data_provider&& ExtendedDataProvider)

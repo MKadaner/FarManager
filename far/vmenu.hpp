@@ -152,13 +152,6 @@ struct item_color_indices;
 struct menu_layout;
 class vmenu_horizontal_tracker;
 
-struct vmenu_fixed_column_t
-{
-	segment TextSegment;
-	int CurrentWidth;
-	wchar_t Separator;
-};
-
 struct SortItemParam
 {
 	bool Reverse;
@@ -196,7 +189,6 @@ public:
 	void SetDialogStyle(bool Style) { ChangeFlags(VMENU_WARNDIALOG, Style); SetColors(nullptr); }
 	void SetUpdateRequired(bool SetUpdate) { ChangeFlags(VMENU_UPDATEREQUIRED, SetUpdate); }
 	void SetMenuFlags(DWORD Flags) { VMFlags.Set(Flags); }
-	void SetFixedColumns(std::vector<vmenu_fixed_column_t>&& FixedColumns, segment ItemTextSegment);
 	void ClearFlags(DWORD Flags) { VMFlags.Clear(Flags); }
 	bool CheckFlags(DWORD Flags) const { return VMFlags.Check(Flags); }
 	DWORD GetFlags() const { return VMFlags.Flags(); }
@@ -245,6 +237,19 @@ public:
 		return std::any_cast<T>(GetComplexUserData(Position));
 	}
 	void SetComplexUserData(const std::any& Data, int Position = -1);
+
+	struct fixed_column_t
+	{
+		int MaxWidth;
+		int CurrentWidth;
+		wchar_t Separator;
+		short ColumnId;
+	};
+	using fixed_column_provider = std::function<string(const menu_item_ex&, fixed_column_t)>;
+	void RegisterFixedColumnsProvider(
+		std::vector<fixed_column_t>&& FixedColumns,
+		fixed_column_provider&& FixedColumnProvider,
+		segment ItemTextSegment = segment::ray());
 
 	using extended_item_data = std::vector<std::pair<FarMacroValue, FarMacroValue>>;
 	using extended_item_data_provider = std::function<extended_item_data(const menu_item_ex&)>;
@@ -360,7 +365,8 @@ private:
 	bool WasAutoHeight{};
 	int m_MaxItemLength{}; // Each Item.Name is intersected with m_ItemTextSegment
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
-	std::vector<vmenu_fixed_column_t> m_FixedColumns;
+	std::vector<fixed_column_t> m_FixedColumns;
+	fixed_column_provider m_FixedColumnProvider;
 	segment m_ItemTextSegment{ segment::ray() };
 	extended_item_data_provider m_ExtendedDataProvider;
 	window_ptr CurrentWindow;
