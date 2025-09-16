@@ -3420,10 +3420,7 @@ namespace
 
 		void add_item(FindCoord FoundCoords, string_view ItemText)
 		{
-			menu_item_ex Item{ far::format(L"{:{}}{:{}}{}"sv,
-				FoundCoords.Line + 1, m_LineNumColumnMaxWidth,
-				FoundCoords.Pos + 1, m_FoundPosColumnMaxWidth,
-				ItemText) };
+			menu_item_ex Item{ string{ ItemText } }; // TBD!!! ItemText should be const string& ???
 			Item.Annotations.emplace_back(FoundCoords.Pos, segment::length_tag{ FoundCoords.SearchLen });
 			Item.ComplexUserData = FoundCoords;
 			m_Menu->AddItem(Item);
@@ -3453,23 +3450,37 @@ namespace
 
 			const short LineNumColumnWidth{ radix10_formatted_width(m_MaxLineNum + 1) };
 			const short FoundPosColumnWidth{ radix10_formatted_width(m_MaxFoundPos + 1) };
-			const short LineNumColumnStart{ static_cast<short>(m_LineNumColumnMaxWidth - LineNumColumnWidth) };
-			const short FoundPosColumnStart{ static_cast<short>(m_LineNumColumnMaxWidth + m_FoundPosColumnMaxWidth - FoundPosColumnWidth) };
-			const short ItemTextStart{ static_cast<short>(m_LineNumColumnMaxWidth + m_FoundPosColumnMaxWidth) };
-			m_Menu->SetFixedColumns(
+			m_Menu->ListBox().RegisterFixedColumnsProvider(
 				{
 					{
-						.TextSegment{ LineNumColumnStart, small_segment::length_tag{ LineNumColumnWidth } },
+						.ColumnId = 0,
+						.MaxWidth = LineNumColumnWidth,
 						.CurrentWidth = LineNumColumnWidth,
 						.Separator = BoxSymbols[BS_V1]
 					},
 					{
-						.TextSegment{ FoundPosColumnStart, small_segment::length_tag{ FoundPosColumnWidth } },
+						.ColumnId = 1,
+						.MaxWidth = FoundPosColumnWidth,
 						.CurrentWidth = FoundPosColumnWidth,
 						.Separator = BoxSymbols[BS_V1]
 					},
 				},
-				small_segment::ray(ItemTextStart)
+				[](const menu_item_ex& Item, VMenu::fixed_column_t Column)
+				{
+					const auto Coord{ std::any_cast<FindCoord>(Item.ComplexUserData) };
+
+					switch (Column.ColumnId)
+					{
+					case 0: // Line Number
+						return far::format(L"{:{}}"sv, Coord.Line + 1, Column.MaxWidth);
+
+					case 1: // Found Position
+						return far::format(L"{:{}}"sv, Coord.Pos + 1, Column.MaxWidth);
+
+					default:
+						return string{};
+					}
+				}
 			);
 			m_Menu->ListBox().RegisterExtendedDataProvider([](const menu_item_ex& Item)
 				{

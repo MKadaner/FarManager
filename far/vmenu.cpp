@@ -3424,7 +3424,10 @@ std::any* VMenu::GetComplexUserData(int Position)
 	return &Items[ItemPos].ComplexUserData;
 }
 
-void VMenu::RegisterFixedColumns(std::vector<fixed_column_t>&& FixedColumns, fixed_column_provider&& FixedColumnProvider)
+void VMenu::RegisterFixedColumnsProvider(
+	std::vector<fixed_column_t>&& FixedColumns,
+	fixed_column_provider&& FixedColumnProvider,
+	small_segment ItemTextSegment)
 {
 	m_FixedColumns = std::move(FixedColumns);
 	for (auto& column : m_FixedColumns)
@@ -3432,6 +3435,7 @@ void VMenu::RegisterFixedColumns(std::vector<fixed_column_t>&& FixedColumns, fix
 		column.CurrentWidth = std::clamp(column.CurrentWidth, short{}, column.MaxWidth);
 	}
 	m_FixedColumnProvider = std::move(FixedColumnProvider);
+	m_ItemTextSegment = ItemTextSegment;
 }
 
 void VMenu::RegisterExtendedDataProvider(extended_item_data_provider&& ExtendedDataProvider)
