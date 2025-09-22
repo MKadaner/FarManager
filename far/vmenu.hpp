@@ -246,10 +246,7 @@ public:
 		short ColumnId;
 	};
 	using fixed_column_provider = std::function<string(const menu_item_ex&, fixed_column_t)>;
-	void RegisterFixedColumnsProvider(
-		std::vector<fixed_column_t>&& FixedColumns,
-		fixed_column_provider&& FixedColumnProvider,
-		segment ItemTextSegment = segment::ray());
+	void RegisterFixedColumnsProvider(std::vector<fixed_column_t>&& FixedColumns, fixed_column_provider&& FixedColumnProvider);
 
 	using extended_item_data = std::vector<std::pair<FarMacroValue, FarMacroValue>>;
 	using extended_item_data_provider = std::function<extended_item_data(const menu_item_ex&)>;
@@ -327,8 +324,7 @@ private:
 		string_view BlankLine) const;
 
 	[[nodiscard]] int CalculateTextAreaWidth() const;
-	[[nodiscard]] int GetItemVisualLength(const menu_item_ex& Item) const; // Intersected with m_ItemTextSegment
-	[[nodiscard]] string_view GetItemText(const menu_item_ex& Item) const; // Intersected with m_ItemTextSegment
+	[[nodiscard]] int GetItemVisualLength(const menu_item_ex& Item) const;
 
 	int GetItemPosition(int Position) const;
 	bool CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos, int& NewPos);
@@ -367,7 +363,6 @@ private:
 	std::unique_ptr<vmenu_horizontal_tracker> m_HorizontalTracker;
 	std::vector<fixed_column_t> m_FixedColumns;
 	fixed_column_provider m_FixedColumnProvider;
-	segment m_ItemTextSegment{ segment::ray() };
 	extended_item_data_provider m_ExtendedDataProvider;
 	window_ptr CurrentWindow;
 	bool PrevCursorVisible{};
