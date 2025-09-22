@@ -551,11 +551,9 @@ namespace
 		return !(Item.Flags & (LIF_HIDDEN | LIF_FILTERED));
 	}
 
-	string_view get_item_cell_text(string_view ItemName, segment CellSegment)
+	string_view get_item_text(const menu_item_ex& Item)
 	{
-		const auto Intersection{ intersect(segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemName.size()) } }, CellSegment) };
-		if (Intersection.empty()) return {};
-		return ItemName.substr(Intersection.start(), Intersection.length());
+		return Item.Name;
 	}
 
 	std::pair<int, int> item_hpos_limits(const int ItemLength, const int TextAreaWidth, const item_hscroll_policy Policy) noexcept
@@ -1071,7 +1069,6 @@ void VMenu::clear()
 	m_MaxItemLength = 0;
 	m_HorizontalTracker->clear();
 	m_FixedColumns.clear();
-	m_ItemTextSegment = segment::ray();
 
 	SetMenuFlags(VMENU_UPDATEREQUIRED);
 }
@@ -1177,7 +1174,7 @@ void VMenu::FilterStringUpdated()
 				ItemHiddenCount++;
 			}
 
-			if (CurItem.Name.empty() && PrevGroup == -1)
+			if (get_item_text(CurItem).empty() && PrevGroup == -1)
 			{
 				CurItem.Flags |= LIF_FILTERED;
 				ItemHiddenCount++;
@@ -1190,7 +1187,7 @@ void VMenu::FilterStringUpdated()
 		}
 		else
 		{
-			if(!contains_icase(remove_highlight(trim(CurItem.Name)), strFilter))
+			if(!contains_icase(remove_highlight(trim(get_item_text(CurItem))), strFilter))
 			{
 				CurItem.Flags |= LIF_FILTERED;
 				ItemHiddenCount++;
@@ -1362,7 +1359,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 						continue;
 
 					int Res = 0;
-					const auto strTemp = trim(remove_highlight(Item.Name));
+					const auto strTemp = trim(remove_highlight(get_item_text(Item)));
 
 					switch (iParam)
 					{
@@ -2822,7 +2819,7 @@ void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const in
 	// We should think of how to deal with fixed columns and horizontally shifted items.
 	// Maybe use fixed columns in the menus where it is necessary
 	// and connect separators in trivial cases only (or not at all)?
-	if (CheckFlags(VMENU_NOMERGEBORDER) || !m_FixedColumns.empty() || m_ItemTextSegment.start() > 0 || separator.size() <= 3)
+	if (CheckFlags(VMENU_NOMERGEBORDER) || !m_FixedColumns.empty() || separator.size() <= 3)
 		return;
 
 	for (const auto I : std::views::iota(0uz, separator.size() - 3))
@@ -2945,7 +2942,7 @@ bool VMenu::DrawItemText(
 	Text(BlankLine.substr(0, std::clamp(Item.HorizontalPosition, 0, static_cast<int>(TextArea.length()))));
 
 	const auto [ItemText, HighlightPos]{ [&]{
-		const auto RawItemText_{ GetItemText(Item) };
+		const auto RawItemText_{ get_item_text(Item) };
 		auto HotkeyPos_{ string::npos };
 		auto ItemText_{ CheckFlags(VMENU_SHOWAMPERSAND) ? string{ RawItemText_ } : HiText2Str(RawItemText_, &HotkeyPos_) };
 		std::ranges::replace(ItemText_, L'\t', L' ');
@@ -3025,7 +3022,7 @@ wchar_t VMenu::GetHighlights(const menu_item_ex* const Item) const
 		return 0;
 
 	wchar_t Ch;
-	return HiTextHotkey(GetItemText(*Item), Ch)? Ch : 0;
+	return HiTextHotkey(get_item_text(*Item), Ch)? Ch : 0;
 }
 
 void VMenu::AssignHighlights(const menu_layout& Layout)
@@ -3079,7 +3076,7 @@ void VMenu::AssignHighlights(const menu_layout& Layout)
 			wchar_t Hotkey{};
 			size_t HotkeyVisualPos{};
 			// TODO: проверка на LIF_HIDDEN
-			if (HiTextHotkey(GetItemText(Item), Hotkey, &HotkeyVisualPos) && RegisterHotkey(Hotkey))
+			if (HiTextHotkey(get_item_text(Item), Hotkey, &HotkeyVisualPos) && RegisterHotkey(Hotkey))
 				SetItemHotkey(Item, Hotkey, HotkeyVisualPos);
 			else
 				ClearItemHotkey(Item);
@@ -3091,7 +3088,7 @@ void VMenu::AssignHighlights(const menu_layout& Layout)
 		auto& Item{ Items[I] };
 		if (Item.AutoHotkey) continue;
 
-		const auto ItemText = GetItemText(Item);
+		const auto ItemText = get_item_text(Item);
 		const auto VisibleTextSegment{ intersect(
 			segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } },
 			segment::ray(-Item.HorizontalPosition)) };
@@ -3123,7 +3120,7 @@ bool VMenu::CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos,
 		if ((!Type && Item.AccelKey && Key == Item.AccelKey)
 			|| (Type
 				&& (Item.AutoHotkey || !CheckFlags(VMENU_SHOWAMPERSAND))
-				&& IsKeyHighlighted(GetItemText(Item), Key, Translate, Item.AutoHotkey)))
+				&& IsKeyHighlighted(get_item_text(Item), Key, Translate, Item.AutoHotkey)))
 		{
 			NewPos = static_cast<int>(std::ranges::distance(Items.data(), &Item));
 			if (ChangePos)
@@ -3146,9 +3143,7 @@ bool VMenu::CheckKeyHiOrAcc(DWORD Key, int Type, bool Translate, bool ChangePos,
 
 void VMenu::UpdateMaxLength(int const ItemLength)
 {
-	m_MaxItemLength = std::max(
-		m_MaxItemLength,
-		intersect(segment{ 0, segment::length_tag{ ItemLength } }, m_ItemTextSegment).length());
+	m_MaxItemLength = std::max(m_MaxItemLength, ItemLength);
 }
 
 void VMenu::SetMaxHeight(int NewMaxHeight)
@@ -3417,10 +3412,7 @@ std::any* VMenu::GetComplexUserData(int Position)
 	return &Items[ItemPos].ComplexUserData;
 }
 
-void VMenu::RegisterFixedColumnsProvider(
-	std::vector<fixed_column_t>&& FixedColumns,
-	fixed_column_provider&& FixedColumnProvider,
-	segment ItemTextSegment)
+void VMenu::RegisterFixedColumnsProvider(std::vector<fixed_column_t>&& FixedColumns, fixed_column_provider&& FixedColumnProvider)
 {
 	m_FixedColumns = std::move(FixedColumns);
 	for (auto& column : m_FixedColumns)
@@ -3428,7 +3420,6 @@ void VMenu::RegisterFixedColumnsProvider(
 		column.CurrentWidth = std::clamp(column.CurrentWidth, int{}, column.MaxWidth);
 	}
 	m_FixedColumnProvider = std::move(FixedColumnProvider);
-	m_ItemTextSegment = ItemTextSegment;
 }
 
 void VMenu::RegisterExtendedDataProvider(extended_item_data_provider&& ExtendedDataProvider)
@@ -3476,9 +3467,7 @@ int VMenu::FindItem(int StartIndex, string_view const Pattern, unsigned long lon
 	{
 		for (const auto I: std::views::iota(static_cast<size_t>(StartIndex), Items.size()))
 		{
-			// Consider: Strictly speaking, we should remove highlight
-			// only within m_ItemTextSegment leaving everything else intact.
-			const auto strTmpBuf = remove_highlight(Items[I].Name);
+			const auto strTmpBuf = remove_highlight(get_item_text(Items[I]));
 
 			if (Flags&LIFIND_EXACTMATCH)
 			{
@@ -3502,11 +3491,9 @@ void VMenu::SortItems(bool Reverse, int Offset)
 {
 	SortItems([](const menu_item_ex& a, const menu_item_ex& b, const SortItemParam& Param)
 	{
-		// Consider: Strictly speaking, we should remove highlight
-		// only within m_ItemTextSegment leaving everything else intact.
 		const auto
-			strName1 = remove_highlight(a.Name),
-			strName2 = remove_highlight(b.Name);
+			strName1 = remove_highlight(get_item_text(a)),
+			strName2 = remove_highlight(get_item_text(b));
 
 		const auto Less = string_sort::less(string_view(strName1).substr(Param.Offset), string_view(strName2).substr(Param.Offset));
 		return Param.Reverse? !Less : Less;
@@ -3525,6 +3512,7 @@ bool VMenu::Pack()
 		{
 			if (!(Items[FirstIndex].Flags & LIF_SEPARATOR) && !(Items[LastIndex].Flags & LIF_SEPARATOR))
 			{
+				// Not using get_item_text because... just in case
 				if (Items[FirstIndex].Name == Items[LastIndex].Name)
 				{
 					DeleteItem(static_cast<int>(LastIndex));
@@ -3598,13 +3586,8 @@ int VMenu::CalculateTextAreaWidth() const
 
 int VMenu::GetItemVisualLength(const menu_item_ex& Item) const
 {
-	const auto ItemCellText{ get_item_cell_text(Item.Name, m_ItemTextSegment) };
-	return static_cast<int>(CheckFlags(VMENU_SHOWAMPERSAND) ? visual_string_length(ItemCellText) : HiStrlen(ItemCellText));
-}
-
-string_view VMenu::GetItemText(const menu_item_ex& Item) const
-{
-	return get_item_cell_text(Item.Name, m_ItemTextSegment);
+	const auto ItemText{ get_item_text(Item) };
+	return static_cast<int>(CheckFlags(VMENU_SHOWAMPERSAND) ? visual_string_length(ItemText) : HiStrlen(ItemText));
 }
 
 size_t VMenu::MenuText(string_view const Str) const
