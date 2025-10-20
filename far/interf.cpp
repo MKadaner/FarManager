@@ -914,32 +914,71 @@ static void string_to_cells(string_view Str, size_t& CharsConsumed, cells& Cells
 void chars_to_cells(string_view Str, size_t& CharsConsumed, size_t const CellsAvailable, size_t& CellsConsumed)
 {
 	cells Cells;
-	const auto& CellsToBeConsumed = Cells.emplace<0>();
+	const auto& CellsToBeConsumed = Cells.emplace<size_t>();
 	string_to_cells(Str, CharsConsumed, Cells, CellsAvailable);
 	CellsConsumed = CellsToBeConsumed;
 
-#ifdef _DEBUG
-	if (CharsConsumed == Str.size())
-		assert(CellsConsumed == visual_string_length(Str));
-#endif
+	assert(CharsConsumed < Str.size() || CellsConsumed == visual_string_length(Str));
 }
 
-size_t Text(string_view Str, size_t const CellsAvailable)
+// Does not advance CurX
+static void write_text(string_view Str, size_t& CharsConsumed, size_t const CellsAvailable, size_t& CellsConsumed)
 {
-	if (Str.empty())
-		return 0;
+	CharsConsumed = 0;
+	CellsConsumed = 0;
+
+	if (Str.empty()) return;
 
 	cells Cells;
-	const auto& Buffer = Cells.emplace<1>();
-
-	size_t CharsConsumed = 0;
+	const auto& Buffer = Cells.emplace<real_cells>();
 
 	string_to_cells(Str, CharsConsumed, Cells, CellsAvailable);
 
 	Global->ScrBuf->Write(CurX, CurY, Buffer);
-	CurX += static_cast<int>(Buffer.size());
 
-	return Buffer.size();
+	CellsConsumed = Buffer.size();
+}
+
+// Returns true if all cells were consumed
+bool ClippedText(string_view Str, const segment Bounds, bool& AllCharsConsumed)
+{
+	const auto WriteOrSkip{ [&Str](const auto RightBoundary, const auto Operation)
+	{
+		if (Str.empty() || CurX >= RightBoundary) return;
+
+		size_t CharsConsumed{};
+		size_t CellsConsumed{};
+		Operation(Str, CharsConsumed, RightBoundary - CurX, CellsConsumed);
+		Str = Str.substr(CharsConsumed);
+		CurX += static_cast<int>(CellsConsumed);
+	} };
+
+	WriteOrSkip(Bounds.start(), chars_to_cells);
+	WriteOrSkip(Bounds.end(), write_text);
+
+	AllCharsConsumed = Str.empty();
+	if (AllCharsConsumed || CurX >= Bounds.end())
+		return CurX >= Bounds.end();
+
+	assert(char_width::is_wide(encoding::utf16::extract_codepoint(Str)));
+	assert(CurX == Bounds.end() - 1);
+	return true;
+}
+
+// Returns true if all cells were consumed
+bool ClippedText(string_view Str, const segment Bounds)
+{
+	bool AllCharsConsumed{};
+	return ClippedText(Str, Bounds, AllCharsConsumed);
+}
+
+size_t Text(string_view Str, size_t const CellsAvailable)
+{
+	size_t CharsConsumed{};
+	size_t CellsConsumed{};
+	write_text(Str, CharsConsumed, CellsAvailable, CellsConsumed);
+	CurX += static_cast<int>(CellsConsumed);
+	return CellsConsumed;
 }
 
 size_t Text(string_view Str)

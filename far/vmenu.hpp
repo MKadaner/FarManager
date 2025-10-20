@@ -348,9 +348,6 @@ private:
 
 	int sizeAsInt() const { return static_cast<int>(size()); }
 
-	size_t MenuText(string_view Str) const;
-	size_t MenuText(wchar_t Char) const;
-
 	string strTitle;
 	string strBottomTitle;
 	int SelectPos{-1};
