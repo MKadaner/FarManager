@@ -937,14 +937,47 @@ static void string_to_cells_full_width_aware(string_view Str, size_t& CharsConsu
 void chars_to_cells(string_view Str, size_t& CharsConsumed, size_t const CellsAvailable, size_t& CellsConsumed)
 {
 	cells Cells;
-	const auto& CellsToBeConsumed = Cells.emplace<0>();
+	const auto& CellsToBeConsumed = Cells.emplace<size_t>();
 	(char_width::is_enabled()? string_to_cells_full_width_aware : string_to_cells_simple)(Str, CharsConsumed, Cells, CellsAvailable);
 	CellsConsumed = CellsToBeConsumed;
 
-#ifdef _DEBUG
-	if (CharsConsumed == Str.size())
-		assert(CellsConsumed == visual_string_length(Str));
-#endif
+	assert(CharsConsumed < Str.size() || CellsConsumed == visual_string_length(Str));
+}
+
+bool BoundedText(string_view Str, const segment Bounds)
+{
+	if (Str.empty()) return true;
+
+	if (CurX >= Bounds.end())
+	{
+		// Do we need to advance CurX here (expensive)?
+		CurX += visual_string_length(Str);
+		return false;
+	}
+
+	cells Cells;
+	const auto& Buffer = Cells.emplace<real_cells>();
+
+	size_t CharsConsumed = 0;
+	(char_width::is_enabled()? string_to_cells_full_width_aware : string_to_cells_simple)(Str, CharsConsumed, Cells, Bounds.end() - CurX + 2);
+
+	const segment TextSegment{ CurX, segment::length_tag{ static_cast<segment::domain_t>(Buffer.size()) } }; // Can TextSegment be empty?
+	const auto VisibleTextSegment{ intersect(TextSegment, Bounds) };
+	if (VisibleTextSegment.empty())
+	{
+		CurX += TextSegment.length();
+		return true;
+	}
+
+	const auto HiddenPrefixLength{ VisibleTextSegment.start() - TextSegment.start() };
+	CurX += HiddenPrefixLength;
+	const auto BufferSpan{ std::span{ Buffer }.subspan(HiddenPrefixLength, VisibleTextSegment.length()) };
+
+	Global->ScrBuf->Write(CurX, CurY, BufferSpan);
+	CurX += static_cast<int>(BufferSpan.size());
+	assert(CurX <= Bounds.end());
+
+	return CurX < Bounds.end();
 }
 
 size_t Text(string_view Str, size_t const CellsAvailable)
@@ -953,7 +986,7 @@ size_t Text(string_view Str, size_t const CellsAvailable)
 		return 0;
 
 	cells Cells;
-	const auto& Buffer = Cells.emplace<1>();
+	const auto& Buffer = Cells.emplace<real_cells>();
 
 	size_t CharsConsumed = 0;
 

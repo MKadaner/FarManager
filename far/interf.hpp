@@ -44,6 +44,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common/2d/matrix.hpp"
 #include "common/2d/rectangle.hpp"
 #include "common/function_ref.hpp"
+#include "common/segment.hpp"
 #include "common/singleton.hpp"
 
 // External:
@@ -176,6 +177,9 @@ bool is_valid_surrogate_pair(string_view Str);
 bool is_valid_surrogate_pair(wchar_t First, wchar_t Second);
 
 void Text(point Where, const FarColor& Color, string_view Str);
+
+// Returns true if there are more cells available
+bool BoundedText(string_view Str, const segment Bounds);
 
 size_t Text(string_view Str, size_t CellsAvailable);
 size_t Text(string_view Str);
