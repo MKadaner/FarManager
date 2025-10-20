@@ -2457,7 +2457,10 @@ bool VMenu::AlignAnnotations()
 
 	const auto Guard{ m_HorizontalTracker->start_bulk_update_annotation(AlignPos) };
 	return SetAllItemsHPos(
-		[&](const menu_item_ex& Item) { return AlignPos - Item.SafeGetFirstAnnotation(); });
+		[&](const menu_item_ex& Item)
+		{
+			return AlignPos - static_cast<int>(visual_string_length(GetItemText(Item).substr(0, Item.SafeGetFirstAnnotation())));
+		});
 }
 
 bool VMenu::ToggleFixedColumns()
@@ -2916,14 +2919,17 @@ void VMenu::DrawFixedColumns(
 		const segment CellArea{ CurCellAreaStart, segment::length_tag{ CurFixedColumn.CurrentWidth } };
 
 		const auto CellText{ get_item_cell_text(Item.Name, CurFixedColumn.TextSegment) };
-		const auto VisibleCellTextSegment{ intersect(
-			segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(CellText.size()) } },
-			segment{ 0, segment::length_tag{ CellArea.length()}})};
+		//const auto VisibleCellTextSegment{ intersect(
+		//	segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(CellText.size()) } },
+		//	segment{ 0, segment::length_tag{ CellArea.length()}})};
 
-		if (!VisibleCellTextSegment.empty())
-			MenuText(CellText.substr(VisibleCellTextSegment.start(), VisibleCellTextSegment.length()));
+		if (BoundedText(CellText, CellArea))
+			BoundedText(BlankLine, CellArea);
 
-		MenuText(BlankLine.substr(0, CellArea.end() - WhereX()));
+		//if (!VisibleCellTextSegment.empty())
+		//	MenuText(CellText.substr(VisibleCellTextSegment.start(), VisibleCellTextSegment.length()));
+
+		//MenuText(BlankLine.substr(0, CellArea.end() - WhereX()));
 		MenuText(CurFixedColumn.Separator);
 
 		CurCellAreaStart = CellArea.end() + 1;
@@ -2934,16 +2940,18 @@ void VMenu::DrawFixedColumns(
 
 bool VMenu::DrawItemText(
 	const menu_item_ex& Item,
-	const small_segment TextArea,
+	const small_segment _TextArea,
 	const int Y,
 	const item_color_indices& ColorIndices,
 	std::vector<int>& HighlightMarkup,
 	string_view BlankLine) const
 {
-	GotoXY(TextArea.start(), Y);
-	set_color(Colors, ColorIndices.Normal);
+	const auto Indent{ std::max(Item.HorizontalPosition, 0) };
+	const auto Hanging{std::max(-Item.HorizontalPosition, 0) };
 
-	Text(BlankLine.substr(0, std::clamp(Item.HorizontalPosition, 0, static_cast<int>(TextArea.length()))));
+	GotoXY(_TextArea.start(), Y);
+	set_color(Colors, ColorIndices.Normal);
+	BoundedText(BlankLine, segment{ _TextArea.start(), segment::sentinel_tag{ _TextArea.end() } });
 
 	const auto [ItemText, HighlightPos]{ [&]{
 		const auto RawItemText_{ GetItemText(Item) };
@@ -2958,31 +2966,51 @@ bool VMenu::DrawItemText(
 		return std::tuple{ ItemText_, HighlightPos_ };
 	}() };
 
-	const auto VisibleTextSegment{ intersect(
-		segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } },
-		segment::ray(-Item.HorizontalPosition))};
+	const segment TextSegment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } };
+	markup_slice_boundaries(TextSegment, Item.Annotations, HighlightPos, HighlightMarkup);
 
-	if (!VisibleTextSegment.empty())
+	const segment TextArea{ _TextArea.start() + Indent, segment::sentinel_tag{ _TextArea.end() } };
+
+	GotoXY(TextArea.start() - Hanging, Y);
+	auto CurColorIndex{ ColorIndices.Normal };
+	auto AltColorIndex{ ColorIndices.Highlighted };
+	int CurTextPos{};
+
+	for (const auto SliceEnd : HighlightMarkup)
 	{
-		markup_slice_boundaries(VisibleTextSegment, Item.Annotations, HighlightPos, HighlightMarkup);
-
-		auto CurColorIndex{ ColorIndices.Normal };
-		auto AltColorIndex{ ColorIndices.Highlighted };
-		auto CurTextPos{ VisibleTextSegment.start() };
-
-		for (const auto SliceEnd : HighlightMarkup)
-		{
-			set_color(Colors, CurColorIndex);
-			Text(string_view{ ItemText }.substr(CurTextPos, SliceEnd - CurTextPos), TextArea.end() - WhereX());
-			std::ranges::swap(CurColorIndex, AltColorIndex);
-			CurTextPos = SliceEnd;
-		}
+		set_color(Colors, CurColorIndex);
+		if (!BoundedText(string_view{ ItemText }.substr(CurTextPos, SliceEnd - CurTextPos), TextArea))
+			break;
+		std::ranges::swap(CurColorIndex, AltColorIndex);
+		CurTextPos = SliceEnd;
 	}
+
+	//const auto VisibleTextSegment{ intersect(
+	//	segment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } },
+	//	segment::ray(-Item.HorizontalPosition)) };
+
+	//if (!VisibleTextSegment.empty())
+	//{
+	//	markup_slice_boundaries(VisibleTextSegment, Item.Annotations, HighlightPos, HighlightMarkup);
+
+	//	auto CurColorIndex{ ColorIndices.Normal };
+	//	auto AltColorIndex{ ColorIndices.Highlighted };
+	//	auto CurTextPos{ VisibleTextSegment.start() };
+
+	//	for (const auto SliceEnd : HighlightMarkup)
+	//	{
+	//		set_color(Colors, CurColorIndex);
+	//		Text(string_view{ ItemText }.substr(CurTextPos, SliceEnd - CurTextPos), TextArea.end() - WhereX());
+	//		std::ranges::swap(CurColorIndex, AltColorIndex);
+	//		CurTextPos = SliceEnd;
+	//	}
+	//}
 
 	set_color(Colors, ColorIndices.Normal);
 
 	if (WhereX() < TextArea.end())
 	{
+		GotoXY(std::max(WhereX(), TextArea.start()), Y);
 		Text(BlankLine, TextArea.end() - WhereX());
 		assert(WhereX() == TextArea.end());
 	}
