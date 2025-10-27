@@ -1246,33 +1246,44 @@ void KeyMacro::CallFar(intptr_t CheckCode, FarMacroCall* Data)
 		case MCODE_F_MENU_SETEXTENDEDDATA: // B=Menu.SetItemExtendedData([hDlg,][N,](Key,Value)*)
 		{
 // -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa --
-			const auto Params{ api.parseParams(2) };
-			const auto Rest{ api.getParams(2) };
-			if (!Params[0].isDialog() || Params[1].isUnknown() || Rest.empty() || Rest.size() % 2 != 0)
+			const auto Params{ api.parseParams(3) };
+			if (!Params[0].isDialog() || Params[1].isUnknown() || !Params[2].isTable())
 			{
 				api.PushNil();
 				return;
 			}
 
-			Dialog* Dlg{ Params[0].asDialog() };
+			const Dialog* Dlg{ Params[0].asDialog() };
 			const auto N{ Params[1].asInteger() - 1 };
+			//TBD ??? const auto ExtData{ GetTable( Params[2].
 
-			VMenu::extended_item_data ExtendedData;
-			for (auto I{ Rest.cbegin() }; I < Rest.cend();)
-			{
-				if (I->Type == FMVT_UNKNOWN || I->Type == FMVT_NIL)
-				{
-					std::ranges::advance(I, 2);
-					continue;
-				}
-				ExtendedData.emplace_back(std::pair{ *I++, *I++ });
-			}
+			//const auto Params{ api.parseParams(2) };
+			//const auto Rest{ api.getParams(2) };
+			//if (!Params[0].isDialog() || Params[1].isUnknown() || Rest.empty() || Rest.size() % 2 != 0)
+			//{
+			//	api.PushNil();
+			//	return;
+			//}
 
-			if (const auto Ret{ Dlg->VMProcess(CheckCode, &ExtendedData, N) }; Ret >= 0)
-			{
-				api.PushBoolean(!!Ret);
-				return;
-			}
+			//Dialog* Dlg{ Params[0].asDialog() };
+			//const auto N{ Params[1].asInteger() - 1 };
+
+			//VMenu::extended_item_data ExtendedData;
+			//for (auto I{ Rest.cbegin() }; I < Rest.cend();)
+			//{
+			//	if (I->Type == FMVT_UNKNOWN || I->Type == FMVT_NIL)
+			//	{
+			//		std::ranges::advance(I, 2);
+			//		continue;
+			//	}
+			//	ExtendedData.emplace_back(std::pair{ *I++, *I++ });
+			//}
+
+			//if (const auto Ret{ Dlg->VMProcess(CheckCode, &ExtendedData, N) }; Ret >= 0)
+			//{
+			//	api.PushBoolean(!!Ret);
+			//	return;
+			//}
 // -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa -- renyxa --
 
 			api.PushNil();
