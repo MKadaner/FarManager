@@ -939,33 +939,50 @@ static void write_text(string_view Str, size_t& CharsConsumed, size_t const Cell
 	CellsConsumed = Buffer.size();
 }
 
-// Returns true if all cells were consumed
-bool ClippedText(string_view Str, const segment Bounds, bool& AllCharsConsumed)
+bool ClippedText(string_view Str, const segment ClippingSegment, bool& AllCharsConsumed)
 {
-	const auto WriteOrSkip{ [&Str](const auto RightBoundary, const auto Operation)
+	AllCharsConsumed = false;
+	if (ClippingSegment.empty()) return false;
+	if (CurX >= ClippingSegment.end()) return true;
+
+	// if a wide codepoint straddles across the EndX position, the codepoint is consumed and a whitespace
+	// padding is added at the leading or trailing cell per PadTrailingCell. CurX is advanced accordingly.
+	// The padding is written even if we are in skip mode. It is caller's responsibility to ensure that
+	// the trailing cell (the one beyond EndX) may be written at.
+	const auto WriteOrSkip{ [&Str](const auto EndX, const auto Operation, const bool PadTrailingCell)
 	{
-		if (Str.empty() || CurX >= RightBoundary) return;
+		if (Str.empty() || CurX >= EndX) return;
 
 		size_t CharsConsumed{};
 		size_t CellsConsumed{};
-		Operation(Str, CharsConsumed, RightBoundary - CurX, CellsConsumed);
-		Str = Str.substr(CharsConsumed);
+		Operation(Str, CharsConsumed, EndX - CurX, CellsConsumed);
+		Str.remove_prefix(CharsConsumed);
 		CurX += static_cast<int>(CellsConsumed);
+
+		if (Str.empty() || CurX >= EndX) return;
+
+		// Neither end of string nor end of screen area were exhausted.
+		// It must be a wide codepoint when only one cell remaining.
+		assert(char_width::is_wide(encoding::utf16::extract_codepoint(Str)));
+		encoding::utf16::remove_first_codepoint(Str);
+
+		// Add padding whitespace either at the leading or trailing cell as specified by the caller.
+		assert(CurX == EndX - 1);
+		if (PadTrailingCell) CurX++;
+		write_text(L" ", CharsConsumed, 1, CellsConsumed); // Does not advance CurX
+		assert(CellsConsumed == 1); // Do we need this insane sanity?
+		CurX++;
 	} };
 
-	WriteOrSkip(Bounds.start(), chars_to_cells);
-	WriteOrSkip(Bounds.end(), write_text);
+	WriteOrSkip(ClippingSegment.start(), chars_to_cells, true);
+	WriteOrSkip(ClippingSegment.end(), write_text, false);
 
 	AllCharsConsumed = Str.empty();
-	if (AllCharsConsumed || CurX >= Bounds.end())
-		return CurX >= Bounds.end();
 
-	assert(char_width::is_wide(encoding::utf16::extract_codepoint(Str)));
-	assert(CurX == Bounds.end() - 1);
-	return true;
+	assert(CurX <= ClippingSegment.end());
+	return CurX >= ClippingSegment.end();
 }
 
-// Returns true if all cells were consumed
 bool ClippedText(string_view Str, const segment Bounds)
 {
 	bool AllCharsConsumed{};

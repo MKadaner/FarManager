@@ -145,7 +145,7 @@ struct menu_item_ex: menu_item
 	wchar_t AutoHotkey{};
 	size_t AutoHotkeyPos{};
 
-	int SafeGetFirstAnnotation() const noexcept { return Annotations.empty() ? 0 : Annotations.front().start(); }
+	int SafeGetFirstAnnotation() const noexcept { return Annotations.empty() || Annotations.front().empty() ? 0 : Annotations.front().start(); }
 };
 
 struct item_color_indices;

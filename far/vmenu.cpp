@@ -595,29 +595,37 @@ namespace
 		return std::clamp(NewHPos, HPosMin, HPosMax);
 	}
 
-	// In full-width-aware mode, it works only for 0 (left) and -1 (right).
-	// Otherwise, it assumes that each character occupies exactly one screen cell.
-	// In fact, we do not need any other alignment. Should we simplify the code here?
+	// |<------------ Text Area Width ------------>|
+	// |                   Item Text               |
+	// |<---- NewHPos ---->                        | // NewHPos >= 0
+	// |         Item Text                         |
+	// |                  <---- (1 - NewHPos) ---->| // NewHPos < 0
 	int get_item_smart_hpos(const int NewHPos, const int ItemLength, const int TextAreaWidth, const item_hscroll_policy Policy)
 	{
 		return get_item_absolute_hpos(NewHPos >= 0 ? NewHPos : TextAreaWidth - ItemLength + NewHPos + 1, ItemLength, TextAreaWidth, Policy);
 	}
 
+	// Left = m_HorizontalTracker->get_left_boundary()
+	// Right = m_HorizontalTracker->get_right_boundary()
 	int adjust_hpos_shift(const int Shift, const int Left, const int Right, const int TextAreaWidth)
 	{
-		assert(Left < Right);
+		assert(Left <= Right);
 
-		if (Shift == 0) return 0;
+		if (Shift == 0 || Left == Right) return 0;
 
-		// Shift left.
+		// Shift item(s) right.
 		if (Shift > 0)
 		{
+			// The left text block boundary must stop at the right edge of the text area
 			const auto ShiftLimit{ std::max(TextAreaWidth - Left - 1, 0) };
+
+			// If the entire text block is beyond the left edge of text area, pretend that it was exactly at edge
 			const auto GapLeftOfTextArea{ std::max(-Right, 0) };
+
 			return std::min(Shift + GapLeftOfTextArea, ShiftLimit);
 		}
 
-		// Shift right. It's just shift left seen from behind the screen.
+		// Shift item(s) left. It's just shift right seen from behind the screen.
 		return -adjust_hpos_shift(-Shift, TextAreaWidth - Right, TextAreaWidth - Left, TextAreaWidth);
 	}
 
@@ -2360,7 +2368,12 @@ bool VMenu::SetItemHPos(menu_item_ex& Item, const auto& GetNewHPos)
 	if (Item.Flags & LIF_SEPARATOR) return false;
 
 	const auto ItemLength{ GetItemVisualLength(Item) };
-	if (ItemLength <= 0) return false;
+	if (ItemLength <= 0)
+	{
+		assert(Item.HorizontalPosition == 0);
+		m_HorizontalTracker->update_item_hpos(Item.HorizontalPosition, 0, 0, 0);
+		return false;
+	}
 
 	const auto NewHPos = [&]
 	{
@@ -2712,13 +2725,16 @@ void VMenu::DrawTitles() const
 {
 	if (CheckFlags(VMENU_SHOWNOBOX)) return;
 
+	// TBD!!! ClippedText does not work here because a wide char can be truncated
+	// at the end resulting in an extra space (padding) at the end of the title.
+	// Use visual_pos_to_string_pos(Str, TitleCellsAvailable, 1) instead!!!
 	const auto DrawTitle{ [this](const string_view Title, int Y)
 	{
 		static constexpr auto Margin{ 2 }; // One for the border, another for L' '
 		const auto TitleCellsAvailable{ m_Where.width() - 2 * Margin };
 		const auto TitleWidth{ static_cast<int>(visual_string_length(Title)) };
 		const segment TitleBounds{
-			m_Where.left + std::max(Margin, (TitleCellsAvailable - TitleWidth) / 2),
+			m_Where.left + Margin + std::max(0, (TitleCellsAvailable - TitleWidth) / 2),
 			segment::length_tag{ std::min(TitleCellsAvailable, TitleWidth) }
 		};
 
@@ -2896,7 +2912,8 @@ void VMenu::DrawRegularItem(const menu_item_ex& Item, const menu_layout& Layout,
 	if (Layout.CheckMark)
 		DrawDecorator(*Layout.CheckMark, get_item_check_mark(Item, ColorIndices));
 
-	if (Layout.LeftHScroll)
+	// TBD!!! Remove test code
+	if (Layout.LeftHScroll && Y >= Layout.ClientRect.top + 4)
 		DrawDecorator(*Layout.LeftHScroll, get_item_left_hscroll(Item.HorizontalPosition < 0, ColorIndices));
 
 	if (Layout.SubMenu)
@@ -2966,27 +2983,31 @@ bool VMenu::DrawItemText(
 		return std::tuple{ ItemText_, HighlightPos_ };
 	}() };
 
-	const segment TextSegment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } };
-	markup_slice_boundaries(TextSegment, Item.Annotations, HighlightPos, HighlightMarkup);
-
-	GotoXY(Bounds.start() + Item.HorizontalPosition, Y);
-
-	auto CurColorIndex{ ColorIndices.Normal };
-	auto AltColorIndex{ ColorIndices.Highlighted };
-	int CurTextPos{};
 	bool NeedRightHScroll{};
 
-	for (const auto SliceEnd : HighlightMarkup)
+	if (!ItemText.empty())
 	{
-		set_color(Colors, CurColorIndex);
-		bool AllCharsConsumed{};
-		if (ClippedText(string_view{ ItemText }.substr(CurTextPos, SliceEnd - CurTextPos), Bounds, AllCharsConsumed))
+		const segment TextSegment{ 0, segment::length_tag{ static_cast<segment::domain_t>(ItemText.size()) } };
+		markup_slice_boundaries(TextSegment, Item.Annotations, HighlightPos, HighlightMarkup);
+
+		GotoXY(Bounds.start() + Item.HorizontalPosition, Y);
+
+		auto CurColorIndex{ ColorIndices.Normal };
+		auto AltColorIndex{ ColorIndices.Highlighted };
+		int CurTextPos{};
+
+		for (const auto SliceEnd : HighlightMarkup)
 		{
-			NeedRightHScroll = !AllCharsConsumed || SliceEnd < static_cast<int>(ItemText.size());
-			break;
+			set_color(Colors, CurColorIndex);
+			bool AllCharsConsumed{};
+			if (ClippedText(string_view{ ItemText }.substr(CurTextPos, SliceEnd - CurTextPos), Bounds, AllCharsConsumed))
+			{
+				NeedRightHScroll = !AllCharsConsumed || SliceEnd < static_cast<int>(ItemText.size());
+				break;
+			}
+			std::ranges::swap(CurColorIndex, AltColorIndex);
+			CurTextPos = SliceEnd;
 		}
-		std::ranges::swap(CurColorIndex, AltColorIndex);
-		CurTextPos = SliceEnd;
 	}
 
 	if (WhereX() < Bounds.end())
