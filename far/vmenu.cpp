@@ -524,7 +524,7 @@ namespace
 
 	string_view get_item_text(const menu_item_ex& Item)
 	{
-		return Item.Name;
+		return Item.GetName();
 	}
 
 	std::pair<int, int> item_hpos_limits(const int ItemLength, const int TextAreaWidth, const item_hscroll_policy Policy) noexcept
@@ -970,7 +970,7 @@ bool VMenu::UpdateItem(const FarListUpdate *NewItem)
 		Item.ComplexUserData = {};
 	}
 
-	Item.Name = NullToEmpty(NewItem->Item.Text);
+	Item.MutableName() = NullToEmpty(NewItem->Item.Text);
 	UpdateItemFlags(NewItem->Index, NewItem->Item.Flags);
 	Item.SimpleUserData = NewItem->Item.UserData;
 
@@ -1385,7 +1385,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 			const auto& menuEx = at(iParam);
 			if (OpCode == MCODE_F_MENU_GETVALUE)
 			{
-				*static_cast<string*>(vParam) = menuEx.Name;
+				*static_cast<string*>(vParam) = menuEx.GetName();
 				return 1;
 			}
 			else
@@ -1422,7 +1422,7 @@ long long VMenu::VMProcess(int OpCode, void* vParam, long long iParam)
 		{
 			if (!HasVisible())
 				return 0;
-			*static_cast<string*>(vParam) = at(SelectPos).Name;
+			*static_cast<string*>(vParam) = at(SelectPos).GetName();
 			return 1;
 		}
 
@@ -2820,11 +2820,11 @@ void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const in
 		const auto AnyPrev = ItemIndex > 0 && Items[ItemIndex - 1].HorizontalPosition == 0;
 		const auto AnyNext = ItemIndex < Items.size() - 1 && Items[ItemIndex + 1].HorizontalPosition == 0;
 
-		const auto PCorrection = AnyPrev && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex - 1].Name, I) - I : 0;
-		const auto NCorrection = AnyNext && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex + 1].Name, I) - I : 0;
+		const auto PCorrection = AnyPrev && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex - 1].GetName(), I) - I : 0;
+		const auto NCorrection = AnyNext && !CheckFlags(VMENU_SHOWAMPERSAND)? HiFindRealPos(Items[ItemIndex + 1].GetName(), I) - I : 0;
 
-		wchar_t PrevItem = (AnyPrev && Items[ItemIndex - 1].Name.size() > I + PCorrection)? Items[ItemIndex - 1].Name[I + PCorrection] : 0;
-		wchar_t NextItem = (AnyNext && Items[ItemIndex + 1].Name.size() > I + NCorrection)? Items[ItemIndex + 1].Name[I + NCorrection] : 0;
+		wchar_t PrevItem = (AnyPrev && Items[ItemIndex - 1].GetName().size() > I + PCorrection)? Items[ItemIndex - 1].GetName()[I + PCorrection] : 0;
+		wchar_t NextItem = (AnyNext && Items[ItemIndex + 1].GetName().size() > I + NCorrection)? Items[ItemIndex + 1].GetName()[I + NCorrection] : 0;
 
 		if (!PrevItem && !NextItem)
 			break;
@@ -2845,14 +2845,14 @@ void VMenu::ConnectSeparator(const size_t ItemIndex, string& separator, const in
 
 void VMenu::ApplySeparatorName(const menu_item_ex& Item, string& separator) const
 {
-	if (Item.Name.empty() || separator.size() <= 3)
+	if (Item.GetName().empty() || separator.size() <= 3)
 		return;
 
-	auto NameWidth{ std::min(Item.Name.size(), separator.size() - 2) };
+	auto NameWidth{ std::min(Item.GetName().size(), separator.size() - 2) };
 	auto NamePos{ (separator.size() - NameWidth) / 2 };
 
 	separator[NamePos - 1] = L' ';
-	separator.replace(NamePos, NameWidth, fit_to_left(Item.Name, NameWidth));
+	separator.replace(NamePos, NameWidth, fit_to_left(Item.GetName(), NameWidth));
 	separator[NamePos + NameWidth] = L' ';
 }
 
@@ -3432,7 +3432,7 @@ FarListItem *VMenu::MenuItem2FarList(const menu_item_ex *MItem, FarListItem *FIt
 	{
 		*FItem = {};
 		FItem->Flags = MItem->Flags;
-		FItem->Text = MItem->Name.c_str();
+		FItem->Text = MItem->GetName().c_str();
 		FItem->UserData = MItem->SimpleUserData;
 		return FItem;
 	}
@@ -3512,7 +3512,7 @@ bool VMenu::Pack()
 			if (!(Items[FirstIndex].Flags & LIF_SEPARATOR) && !(Items[LastIndex].Flags & LIF_SEPARATOR))
 			{
 				// Not using get_item_text because... just in case
-				if (Items[FirstIndex].Name == Items[LastIndex].Name)
+				if (Items[FirstIndex].GetName() == Items[LastIndex].GetName())
 				{
 					DeleteItem(static_cast<int>(LastIndex));
 				}
@@ -3540,7 +3540,7 @@ std::vector<string> VMenu::AddHotkeys(std::span<menu_item> const MenuItems)
 
 	const size_t MaxLength = std::ranges::fold_left(MenuItems, 0uz, [](size_t Value, const auto& i)
 	{
-		return std::max(Value, i.Name.size());
+		return std::max(Value, i.GetName().size());
 	});
 
 	for (const auto& [Item, Str]: zip(MenuItems, Result))
@@ -3549,9 +3549,9 @@ std::vector<string> VMenu::AddHotkeys(std::span<menu_item> const MenuItems)
 			continue;
 
 		const auto Key = KeyToLocalizedText(Item.AccelKey);
-		const auto Hl = HiStrlen(Item.Name) != visual_string_length(Item.Name);
-		Str = fit_to_left(Item.Name, MaxLength + (Hl? 2 : 1)) + Key;
-		Item.Name = Str;
+		const auto Hl = HiStrlen(Item.GetName()) != visual_string_length(Item.GetName());
+		Str = fit_to_left(Item.GetName(), MaxLength + (Hl? 2 : 1)) + Key;
+		Item.MutableName() = Str;
 	}
 
 	return Result;

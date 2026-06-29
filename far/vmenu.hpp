@@ -88,9 +88,36 @@ enum VMENU_FLAGS
 
 struct menu_item
 {
+private:
 	string Name;
+public:
 	LISTITEMFLAGS Flags{};
 	DWORD AccelKey{};
+	int VisualLength{ InvalidVisualLength };
+	static constexpr auto InvalidVisualLength{ std::numeric_limits<decltype(VisualLength)>::min() };
+
+	menu_item() = default;
+
+	template<typename T> requires std::constructible_from<string, T, LISTITEMFLAGS>
+	menu_item(T&& Name, LISTITEMFLAGS Flags, DWORD AccelKey = {})
+		: Name{ std::forward<T>(Name) }, Flags{ Flags }, AccelKey{ AccelKey }
+	{}
+
+	template<typename T> requires std::constructible_from<string, T, LISTITEMFLAGS>
+	explicit menu_item(T&& Name)
+		: menu_item{ std::forward<T>(Name), {}, {} }
+	{}
+
+	const string& GetName() const noexcept
+	{
+		return Name;
+	}
+
+	string& MutableName() noexcept
+	{
+		VisualLength = InvalidVisualLength;
+		return Name;
+	}
 
 	unsigned long long SetCheck()
 	{
@@ -124,16 +151,16 @@ struct menu_item_ex: menu_item
 	NONCOPYABLE(menu_item_ex);
 	MOVABLE(menu_item_ex);
 
-	explicit menu_item_ex(const menu_item& Item)
-		: menu_item{ Item }
-	{}
+	//explicit menu_item_ex(const menu_item& Item)
+	//	: menu_item{ Item }
+	//{}
 
 	explicit menu_item_ex(LISTITEMFLAGS Flags)
 		: menu_item{ string{}, Flags }
 	{}
 
-	template<typename T> requires (std::is_constructible_v<menu_item, T, LISTITEMFLAGS>)
-	explicit menu_item_ex(T&& Name, LISTITEMFLAGS Flags = 0)
+	template<typename T> requires std::constructible_from<menu_item, T, LISTITEMFLAGS>
+	explicit menu_item_ex(T&& Name, LISTITEMFLAGS Flags = {})
 		: menu_item{ std::forward<T>(Name), Flags }
 	{}
 

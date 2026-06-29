@@ -809,7 +809,7 @@ intptr_t WINAPI apiMenuFn(
 					Selected++;
 				}
 
-				CurItem.Name = NullToEmpty(i.Text);
+				CurItem.MutableName() = NullToEmpty(i.Text);
 				if(CurItem.Flags&LIF_SEPARATOR)
 				{
 					CurItem.AccelKey=0;
